@@ -133,7 +133,6 @@ const MyList = () => {
           onToggleLike={() => toggleLike(item.id)}
         />
       )}
-      estimatedItemSize={100}
     />
   );
 };
@@ -270,7 +269,6 @@ const data = rawData.map((item) => ({
 <FlashList
   data={data}
   renderItem={({ item }) => <Text>{item.processedValue}</Text>}
-  estimatedItemSize={50}
 />;
 ```
 

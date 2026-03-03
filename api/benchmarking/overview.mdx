@@ -167,7 +167,6 @@ function BenchmarkExample() {
       ref={flashListRef}
       data={data}
       renderItem={({ item }) => <YourComponent item={item} />}
-      estimatedItemSize={100}
     />
   );
 }
@@ -222,7 +221,6 @@ function ManualBenchmark() {
         ref={flashListRef}
         data={data}
         renderItem={renderItem}
-        estimatedItemSize={100}
       />
     </View>
   );
@@ -267,7 +265,6 @@ function PerformanceComparison() {
           ref={flashListRef}
           data={data}
           renderItem={renderItem}
-          estimatedItemSize={100}
         />
       ) : (
         <FlatList

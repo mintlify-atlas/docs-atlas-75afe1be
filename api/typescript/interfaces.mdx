@@ -35,14 +35,6 @@ Function to render each item.
 renderItem: ListRenderItem<TItem> | null | undefined;
 ```
 
-#### estimatedItemSize
-
-Estimated size of items for optimal performance. **Required prop** for good performance.
-
-```typescript
-estimatedItemSize: number;
-```
-
 See the [FlashList Props](/api/props/data-and-rendering) reference for all available props and detailed documentation.
 
 ### Example
@@ -65,7 +57,6 @@ function ChatScreen({ messages }: { messages: Message[] }) {
     <ChatList
       data={messages}
       renderItem={renderMessage}
-      estimatedItemSize={60}
       keyExtractor={(item) => item.id}
     />
   );
@@ -298,7 +289,6 @@ function MyList({ data }: { data: Item[] }) {
         ref={listRef}
         data={data}
         renderItem={renderItem}
-        estimatedItemSize={100}
       />
       <Button onPress={scrollToTop} title="Scroll to Top" />
       <Button onPress={checkVisibility} title="Check Visibility" />
@@ -479,7 +469,6 @@ function VideoFeed({ videos }: { videos: Video[] }) {
     <FlashList
       data={videos}
       renderItem={renderVideo}
-      estimatedItemSize={400}
       onViewableItemsChanged={handleViewableItemsChanged}
       viewabilityConfig={{
         itemVisiblePercentThreshold: 50,
@@ -720,7 +709,6 @@ function ProductList({ products }: { products: Product[] }) {
       ref={listRef}
       data={products}
       renderItem={renderProduct}
-      estimatedItemSize={150}
     />
   );
 }
@@ -831,12 +819,10 @@ function Screen() {
       <FlashList
         data={data1}
         renderItem={renderItem1}
-        estimatedItemSize={100}
       />
       <FlashList
         data={data2}
         renderItem={renderItem2}
-        estimatedItemSize={80}
       />
     </LayoutCommitObserver>
   );
@@ -921,7 +907,6 @@ const overrideProps: OverrideProps = {
 <FlashList
   data={data}
   renderItem={renderItem}
-  estimatedItemSize={100}
   overrideProps={overrideProps}
 />
 ```

@@ -89,9 +89,6 @@ Frequently asked questions about FlashList. Can't find what you're looking for? 
   <Accordion title="What props are different from FlatList?">
     Most props are identical. Key differences:
 
-    **Not needed in v2:**
-    - `estimatedItemSize` (v2 handles sizing automatically)
-
     **Not supported:**
     - `getItemLayout`
     - `initialNumToRender`
@@ -105,12 +102,6 @@ Frequently asked questions about FlashList. Can't find what you're looking for? 
     - `maxItemsInRecyclePool` - Control recycling behavior
 
     See [Known Issues](/known-issues) for the complete list.
-  </Accordion>
-
-  <Accordion title="Do I need estimatedItemSize in v2?">
-    No! FlashList v2 automatically handles item sizing without requiring estimates. This was a major improvement from v1.
-
-    If you're migrating from v1, you can safely remove `estimatedItemSize` from your code.
   </Accordion>
 
   <Accordion title="My FlatList works fine. Why should I migrate?">

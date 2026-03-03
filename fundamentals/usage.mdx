@@ -22,7 +22,6 @@ const MyList = () => {
     <FlashList
       data={DATA}
       renderItem={({ item }) => <Text>{item.title}</Text>}
-      estimatedItemSize={50}
     />
   );
 };
@@ -81,7 +80,6 @@ const renderItem = ({ item, index, target }) => {
 <FlashList
   data={[{ title: "Title Text", key: "item1" }]}
   renderItem={renderItem}
-  estimatedItemSize={50}
 />;
 ```
 
@@ -94,16 +92,6 @@ const renderItem = ({ item, index, target }) => {
 ```tsx
 data: ItemT[];
 ```
-
-### estimatedItemSize
-
-<ParamField path="estimatedItemSize" type="number">
-  This is a single numeric value that hints FlashList about the approximate size of the items before they're rendered.
-</ParamField>
-
-<Note>
-While not strictly required, providing `estimatedItemSize` can improve initial render performance. In v2, FlashList will measure items automatically, but providing an estimate helps with the initial layout.
-</Note>
 
 ### getItemType
 
@@ -141,7 +129,6 @@ interface Message {
     }
   }}
   getItemType={(item) => item.type}
-  estimatedItemSize={200}
 />;
 ```
 
@@ -166,7 +153,6 @@ Key is used for optimizing performance. Defining `keyExtractor` is also necessar
   data={items}
   keyExtractor={(item) => item.id}
   renderItem={({ item }) => <ItemView item={item} />}
-  estimatedItemSize={100}
 />
 ```
 
@@ -268,7 +254,6 @@ Useful for loading older content in infinite scroll scenarios like chat applicat
   onStartReached={() => loadOlderMessages()}
   onStartReachedThreshold={0.1}
   renderItem={({ item }) => <MessageItem message={item} />}
-  estimatedItemSize={80}
 />
 ```
 
@@ -363,7 +348,6 @@ interface ViewabilityConfig {
   }}
   data={data}
   renderItem={renderItem}
-  estimatedItemSize={100}
 />
 ```
 
@@ -395,7 +379,6 @@ maintainVisibleContentPosition?: {
     startRenderingFromBottom: true,
   }}
   renderItem={({ item }) => <ChatMessage message={item} />}
-  estimatedItemSize={80}
 />
 ```
 
@@ -425,7 +408,6 @@ Useful when you have grid layouts (`numColumns > 1`) and want a few items to be 
     layout.span = item.span; // Set span based on item
   }}
   renderItem={({ item }) => <GridItem item={item} />}
-  estimatedItemSize={150}
 />
 ```
 
@@ -455,7 +437,6 @@ const AnimatedCellContainer = Animated.createAnimatedComponent(CellContainer);
   )}
   data={data}
   renderItem={renderItem}
-  estimatedItemSize={100}
 />;
 ```
 

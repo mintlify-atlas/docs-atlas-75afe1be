@@ -13,7 +13,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     data={items}
     renderItem={renderItem}
     horizontal
-    estimatedItemSize={100}
   />
   ```
 </ParamField>
@@ -26,7 +25,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     data={items}
     renderItem={renderItem}
     numColumns={2}
-    estimatedItemSize={150}
   />
   ```
 
@@ -46,7 +44,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     renderItem={renderItem}
     numColumns={2}
     masonry
-    estimatedItemSize={150}
   />
   ```
 </ParamField>
@@ -63,7 +60,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     numColumns={2}
     masonry
     optimizeItemArrangement
-    estimatedItemSize={150}
   />
   ```
 </ParamField>
@@ -90,7 +86,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     data={items}
     renderItem={renderItem}
     style={{ flex: 1, backgroundColor: '#f5f5f5' }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -103,7 +98,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     data={items}
     renderItem={renderItem}
     contentContainerStyle={{ paddingHorizontal: 16 }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -126,7 +120,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
       style: { overflow: "visible" },
       showsVerticalScrollIndicator: false,
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -149,7 +142,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     data={items}
     renderItem={renderItem}
     stickyHeaderIndices={[0, 5, 10]}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -168,7 +160,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
       hideRelatedCell: false,
       backdropComponent: <BlurView />,
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -193,7 +184,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     onChangeStickyIndex={(current, previous) => {
       console.log(`Sticky header changed from ${previous} to ${current}`);
     }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -217,7 +207,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     renderItem={renderItem}
     onRefresh={onRefresh}
     refreshing={refreshing}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -231,7 +220,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     renderItem={renderItem}
     onRefresh={onRefresh}
     refreshing={refreshing}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -248,7 +236,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     onRefresh={onRefresh}
     refreshing={refreshing}
     progressViewOffset={100}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -267,7 +254,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     onLoad={({ elapsedTimeInMs }) => {
       console.log(`List loaded in ${elapsedTimeInMs}ms`);
     }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -288,7 +274,6 @@ description: Props for controlling layout, columns, orientation, and styling in 
     onCommitLayoutEffect={() => {
       console.log('Layout committed');
     }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>

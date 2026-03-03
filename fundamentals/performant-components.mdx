@@ -139,7 +139,6 @@ const MessageList = () => {
     <FlashList
       renderItem={({ item }) => <MessageItem item={item} />}
       data={messages}
-      estimatedItemSize={200}
     />
   );
 };
@@ -154,7 +153,6 @@ const MessageList = () => {
     <FlashList
       renderItem={({ item }) => <MessageItem item={item} />}
       data={messages}
-      estimatedItemSize={200}
       getItemType={(item) => item.type} // Separate recycling pools!
     />
   );
@@ -211,7 +209,6 @@ const processedData = rawData.map((item) => ({
       <Text>{item.formattedDate}</Text>
     </View>
   )}
-  estimatedItemSize={100}
 />;
 ```
 
@@ -338,7 +335,6 @@ const MyList = () => {
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       getItemType={getItemType}
-      estimatedItemSize={100}
     />
   );
 };
@@ -608,7 +604,6 @@ export const UserList = ({ data }: { data: ListItem[] }) => {
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       getItemType={getItemType}
-      estimatedItemSize={80}
     />
   );
 };
@@ -645,7 +640,6 @@ const onRenderCallback = (
 };
 
 <Profiler id="FlashList" onRender={onRenderCallback}>
-  <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
 </Profiler>;
 ```
 

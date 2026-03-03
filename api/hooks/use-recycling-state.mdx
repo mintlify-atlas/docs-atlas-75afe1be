@@ -96,7 +96,6 @@ const MyList = ({ data }: { data: Item[] }) => (
   <FlashList
     data={data}
     renderItem={({ item }) => <ListItem item={item} />}
-    estimatedItemSize={50}
   />
 );
 ```
@@ -191,7 +190,6 @@ const MovieGrid = ({ movies }: { movies: Movie[] }) => (
     data={movies}
     renderItem={({ item }) => <MovieCard item={item} />}
     numColumns={2}
-    estimatedItemSize={150}
   />
 );
 

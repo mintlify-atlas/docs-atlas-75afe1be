@@ -124,7 +124,6 @@ Let's migrate a contacts list from `SectionList` to `FlashList`.
             // Critical for performance: specify item types
             return typeof item === "string" ? "sectionHeader" : "row";
           }}
-          estimatedItemSize={50}
         />
       );
     };
@@ -150,7 +149,6 @@ Let's migrate a contacts list from `SectionList` to `FlashList`.
         renderItem={renderItem}
         getItemType={getItemType}
         stickyHeaderIndices={stickyHeaderIndices}
-        estimatedItemSize={50}
       />
     );
     ```
@@ -226,7 +224,6 @@ const ContactsFlashList = () => {
       renderItem={renderItem}
       getItemType={getItemType}
       stickyHeaderIndices={stickyHeaderIndices}
-      estimatedItemSize={60}
     />
   );
 };
@@ -349,7 +346,6 @@ const ContactsList = ({ sections }: { sections: Section[] }) => {
       data={flatData}
       renderItem={renderItem}
       getItemType={getItemType}
-      estimatedItemSize={60}
     />
   );
 };
@@ -394,9 +390,6 @@ const ContactsList = ({ sections }: { sections: Section[] }) => {
   </Card>
   <Card title="Optimize renderItem" icon="code">
     Extract render logic into memoized components to prevent unnecessary re-renders.
-  </Card>
-  <Card title="Set estimatedItemSize" icon="ruler">
-    Provide an accurate `estimatedItemSize` for better initial layout calculations.
   </Card>
 </CardGroup>
 

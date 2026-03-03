@@ -257,7 +257,6 @@ const CategoryItem = ({ category }: { category: Category }) => {
             onPress={() => handleItemPress(item)}
           />
         )}
-        estimatedItemSize={150}
       />
     </View>
   );
@@ -267,7 +266,6 @@ const MainList = ({ categories }: { categories: Category[] }) => (
   <FlashList
     data={categories}
     renderItem={({ item }) => <CategoryItem category={item} />}
-    estimatedItemSize={200}
   />
 );
 ```
@@ -418,7 +416,6 @@ const DepartmentRow = ({ department }: { department: Department }) => (
       horizontal
       data={department.products}
       renderItem={({ item }) => <ProductCard product={item} />}
-      estimatedItemSize={120}
     />
   </View>
 );
@@ -427,7 +424,6 @@ const StoreView = ({ store }: { store: Store }) => (
   <FlashList
     data={store.departments}
     renderItem={({ item }) => <DepartmentRow department={item} />}
-    estimatedItemSize={180}
   />
 );
 ```

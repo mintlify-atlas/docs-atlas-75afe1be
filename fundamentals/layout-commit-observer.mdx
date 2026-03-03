@@ -50,12 +50,10 @@ function MyScreen() {
         <FlashList
           data={data1}
           renderItem={renderItem1}
-          estimatedItemSize={100}
         />
         <FlashList
           data={data2}
           renderItem={renderItem2}
-          estimatedItemSize={80}
         />
       </View>
     </LayoutCommitObserver>
@@ -90,7 +88,6 @@ function ResponsiveList() {
         <FlashList
           data={items}
           renderItem={({ item }) => <ItemView item={item} />}
-          estimatedItemSize={100}
         />
       </View>
     </LayoutCommitObserver>
@@ -133,7 +130,6 @@ function AnimatedListContainer() {
         <FlashList
           data={items}
           renderItem={({ item }) => <ItemView item={item} />}
-          estimatedItemSize={100}
         />
       </Animated.View>
     </LayoutCommitObserver>
@@ -165,11 +161,9 @@ function NestedListsScreen() {
               data={section.items}
               horizontal
               renderItem={({ item }) => <ItemCard item={item} />}
-              estimatedItemSize={120}
             />
           </View>
         )}
-        estimatedItemSize={200}
       />
     </LayoutCommitObserver>
   );
@@ -201,7 +195,6 @@ function SynchronizedUI() {
         <FlashList
           data={items}
           renderItem={({ item }) => <ItemView item={item} />}
-          estimatedItemSize={100}
         />
         {isReady && <Footer measurements={measurements} />}
       </View>
@@ -242,7 +235,6 @@ function SafeLayoutObserver() {
       <FlashList
         data={data}
         renderItem={renderItem}
-        estimatedItemSize={100}
       />
     </LayoutCommitObserver>
   );
@@ -267,7 +259,6 @@ function ParentComponent({ children }) {
 
 // Children render FlashList
 function ChildComponent() {
-  return <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />;
 }
 ```
 
@@ -280,7 +271,6 @@ function SimpleList() {
     <FlashList
       data={data}
       renderItem={renderItem}
-      estimatedItemSize={100}
       onCommitLayoutEffect={() => console.log("Layout committed")}
     />
   );
@@ -342,7 +332,6 @@ function ListWithLoader() {
       <LayoutCommitObserver
         onCommitLayoutEffect={() => setIsLoading(false)}
       >
-        <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
       </LayoutCommitObserver>
     </>
   );
@@ -362,7 +351,6 @@ function TrackedList() {
 
   return (
     <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
-      <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
     </LayoutCommitObserver>
   );
 }
@@ -391,7 +379,6 @@ function ListWithAutoScroll() {
         ref={flashListRef}
         data={data}
         renderItem={renderItem}
-        estimatedItemSize={100}
       />
     </LayoutCommitObserver>
   );

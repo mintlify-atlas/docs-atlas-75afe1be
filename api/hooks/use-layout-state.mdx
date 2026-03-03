@@ -108,7 +108,6 @@ const CommentList = ({ comments }: { comments: Comment[] }) => (
   <FlashList
     data={comments}
     renderItem={({ item }) => <CommentItem comment={item} />}
-    estimatedItemSize={80}
   />
 );
 ```
@@ -193,7 +192,6 @@ const FAQ = ({ sections }: { sections: Section[] }) => (
   <FlashList
     data={sections}
     renderItem={({ item }) => <AccordionItem section={item} />}
-    estimatedItemSize={60}
   />
 );
 

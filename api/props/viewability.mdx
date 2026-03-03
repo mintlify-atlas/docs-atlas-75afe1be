@@ -28,7 +28,6 @@ description: Props for tracking which items are visible on screen in FlashList
     viewabilityConfig={{
       itemVisiblePercentThreshold: 50,
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -58,7 +57,6 @@ description: Props for tracking which items are visible on screen in FlashList
       minimumViewTime: 500,
       waitForInteraction: true,
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -86,7 +84,6 @@ description: Props for tracking which items are visible on screen in FlashList
       itemVisiblePercentThreshold: 50,
       minimumViewTime: 1000,
     }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -120,7 +117,6 @@ description: Props for tracking which items are visible on screen in FlashList
     data={items}
     renderItem={renderItem}
     viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
-    estimatedItemSize={50}
   />
   ```
 
@@ -203,7 +199,6 @@ const VideoList = () => {
         itemVisiblePercentThreshold: 75,
         minimumViewTime: 2000,
       }}
-      estimatedItemSize={300}
     />
   );
 };
@@ -244,7 +239,6 @@ const VideoFeed = () => {
       viewabilityConfig={{
         itemVisiblePercentThreshold: 80,
       }}
-      estimatedItemSize={400}
     />
   );
 };
@@ -287,7 +281,6 @@ const ProductList = () => {
       data={products}
       renderItem={renderProduct}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
-      estimatedItemSize={200}
     />
   );
 };

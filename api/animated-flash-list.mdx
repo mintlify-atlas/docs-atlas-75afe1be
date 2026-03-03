@@ -18,7 +18,6 @@ function MyAnimatedList() {
     <AnimatedFlashList
       data={items}
       renderItem={({ item }) => <ItemView item={item} />}
-      estimatedItemSize={100}
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
         { useNativeDriver: true }
@@ -71,7 +70,6 @@ function ListWithAnimatedHeader() {
       <AnimatedFlashList
         data={items}
         renderItem={({ item }) => <ItemView item={item} />}
-        estimatedItemSize={100}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false } // false for layout properties
@@ -128,7 +126,6 @@ function ParallaxList() {
       <AnimatedFlashList
         data={items}
         renderItem={({ item }) => <ItemView item={item} />}
-        estimatedItemSize={100}
         contentContainerStyle={{ paddingTop: 200 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -183,7 +180,6 @@ function ListWithProgress() {
       <AnimatedFlashList
         data={items}
         renderItem={({ item }) => <ItemView item={item} />}
-        estimatedItemSize={100}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
@@ -301,7 +297,6 @@ interface Item {
     <Text>{item.title}</Text> // item is typed as Item
   )}
   keyExtractor={(item) => item.id} // item is typed as Item
-  estimatedItemSize={100}
 />
 ```
 
@@ -309,9 +304,8 @@ interface Item {
 
 Just like `FlashList`, `AnimatedFlashList` has some key differences from React Native's `Animated.FlatList`:
 
-1. **Required `estimatedItemSize`**: While not strictly required, providing this prop significantly improves performance
-2. **Better recycling**: Items are recycled more efficiently, which is especially important for animated lists
-3. **Consistent performance**: Animation performance remains stable even with large datasets
+1. **Better recycling**: Items are recycled more efficiently, which is especially important for animated lists
+2. **Consistent performance**: Animation performance remains stable even with large datasets
 
 See the [FlashList documentation](/api/flash-list) for more details on these differences.
 

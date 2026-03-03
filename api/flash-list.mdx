@@ -15,7 +15,6 @@ function MyList() {
     <FlashList
       data={items}
       renderItem={({ item }) => <ItemView item={item} />}
-      estimatedItemSize={100}
     />
   );
 }
@@ -53,16 +52,6 @@ function MyList() {
 </ParamField>
 
 ### Layout Props
-
-<ParamField path="estimatedItemSize" type="number">
-  **Strongly recommended.** Approximate size of items in pixels. Providing this improves initial render performance and scroll position accuracy.
-  
-  For vertical lists, this is the height. For horizontal lists, this is the width.
-  
-  ```tsx
-  <FlashList estimatedItemSize={120} />
-  ```
-</ParamField>
 
 <ParamField path="horizontal" type="boolean">
   If `true`, renders items next to each other horizontally instead of stacked vertically.

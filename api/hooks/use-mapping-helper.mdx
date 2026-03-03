@@ -99,7 +99,6 @@ const ProductList = ({ products }: { products: Product[] }) => (
   <FlashList
     data={products}
     renderItem={({ item }) => <ProductItem product={item} />}
-    estimatedItemSize={100}
   />
 );
 ```
@@ -189,7 +188,6 @@ const ProductList = ({ products }: { products: Product[] }) => (
   <FlashList
     data={products}
     renderItem={({ item }) => <ProductCard product={item} />}
-    estimatedItemSize={200}
   />
 );
 

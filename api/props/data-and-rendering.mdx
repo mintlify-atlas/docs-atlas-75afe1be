@@ -15,7 +15,6 @@ description: Props for controlling data input and item rendering in FlashList
       { id: '2', title: 'Second Item' },
     ]}
     renderItem={renderItem}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -51,7 +50,6 @@ description: Props for controlling data input and item rendering in FlashList
     data={items}
     renderItem={renderItem}
     keyExtractor={(item, index) => item.id}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -74,7 +72,6 @@ description: Props for controlling data input and item rendering in FlashList
       return <TextItem {...item} />;
     }}
     getItemType={(item) => item.type}
-    estimatedItemSize={100}
   />
   ```
 </ParamField>
@@ -98,7 +95,6 @@ description: Props for controlling data input and item rendering in FlashList
       />
     )}
     extraData={selectedId}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -136,7 +132,6 @@ description: Props for controlling data input and item rendering in FlashList
     data={items}
     renderItem={renderItem}
     ItemSeparatorComponent={Separator}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -153,7 +148,6 @@ description: Props for controlling data input and item rendering in FlashList
         <Text>No items found</Text>
       </View>
     )}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -166,7 +160,6 @@ description: Props for controlling data input and item rendering in FlashList
     data={items}
     renderItem={renderItem}
     ListHeaderComponent={<HeaderComponent />}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -180,7 +173,6 @@ description: Props for controlling data input and item rendering in FlashList
     renderItem={renderItem}
     ListHeaderComponent={<HeaderComponent />}
     ListHeaderComponentStyle={{ paddingBottom: 20 }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -193,7 +185,6 @@ description: Props for controlling data input and item rendering in FlashList
     data={items}
     renderItem={renderItem}
     ListFooterComponent={<FooterComponent />}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -207,7 +198,6 @@ description: Props for controlling data input and item rendering in FlashList
     renderItem={renderItem}
     ListFooterComponent={<FooterComponent />}
     ListFooterComponentStyle={{ paddingTop: 20 }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -226,7 +216,6 @@ description: Props for controlling data input and item rendering in FlashList
     data={items}
     renderItem={renderItem}
     renderScrollComponent={CustomScrollView}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>

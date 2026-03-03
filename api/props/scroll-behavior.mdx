@@ -13,7 +13,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={items}
     renderItem={renderItem}
     initialScrollIndex={10}
-    estimatedItemSize={50}
   />
   ```
 
@@ -33,7 +32,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     initialScrollIndex={10}
     initialScrollIndexParams={{ viewOffset: 20 }}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -54,7 +52,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     onEndReached={loadMore}
     onEndReachedThreshold={0.5}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -70,7 +67,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     onEndReached={loadMore}
     onEndReachedThreshold={0.8}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -91,7 +87,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     onStartReached={loadPrevious}
     onStartReachedThreshold={0.2}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -109,7 +104,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     onStartReached={loadPrevious}
     onStartReachedThreshold={0.3}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -126,7 +120,6 @@ description: Props for controlling scroll position, initial state, and scroll be
       console.log('Scroll offset:', offsetY);
     }}
     scrollEventThrottle={16}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -140,7 +133,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     onScroll={handleScroll}
     scrollEventThrottle={16}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -164,7 +156,6 @@ description: Props for controlling scroll position, initial state, and scroll be
       animateAutoScrollToBottom: true,
       startRenderingFromBottom: true,
     }}
-    estimatedItemSize={80}
   />
   ```
 
@@ -187,7 +178,6 @@ description: Props for controlling scroll position, initial state, and scroll be
       autoscrollToBottomThreshold: 50,
       animateAutoScrollToBottom: true,
     }}
-    estimatedItemSize={80}
   />
   ```
 </ParamField>
@@ -202,7 +192,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={items}
     renderItem={renderItem}
     showsVerticalScrollIndicator={false}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -216,7 +205,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     horizontal
     showsHorizontalScrollIndicator={false}
-    estimatedItemSize={100}
   />
   ```
 </ParamField>
@@ -232,7 +220,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={messages}
     renderItem={renderMessage}
     inverted
-    estimatedItemSize={80}
   />
   ```
 </ParamField>
@@ -245,7 +232,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={items}
     renderItem={renderItem}
     bounces={false}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -258,7 +244,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={items}
     renderItem={renderItem}
     alwaysBounceVertical={true}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -272,7 +257,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     horizontal
     alwaysBounceHorizontal={true}
-    estimatedItemSize={100}
   />
   ```
 </ParamField>
@@ -285,7 +269,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     data={items}
     renderItem={renderItem}
     scrollEnabled={false}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -299,7 +282,6 @@ description: Props for controlling scroll position, initial state, and scroll be
     renderItem={renderItem}
     horizontal
     pagingEnabled
-    estimatedItemSize={350}
   />
   ```
 </ParamField>

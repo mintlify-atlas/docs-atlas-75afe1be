@@ -60,7 +60,6 @@ const AnimatedList = () => {
           </Pressable>
         </Animated.View>
       )}
-      estimatedItemSize={68}
     />
   );
 };
@@ -212,7 +211,6 @@ const AnimatedCardList = () => {
       data={data}
       renderItem={({ item }) => <AnimatedCard item={item} />}
       keyExtractor={(item) => item.id}
-      estimatedItemSize={100}
     />
   );
 };

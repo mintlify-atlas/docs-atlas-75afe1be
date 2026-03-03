@@ -58,7 +58,6 @@ function ProductList({ products }: { products: Product[] }) {
     <FlashList
       data={products}
       renderItem={renderProduct}
-      estimatedItemSize={100}
     />
   );
 }
@@ -173,7 +172,6 @@ function FeedList({ posts }: { posts: Post[] }) {
     <FlashList
       data={posts}
       renderItem={renderPost}
-      estimatedItemSize={200}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
     />
   );

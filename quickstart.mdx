@@ -29,7 +29,6 @@ const MyList = () => {
           <Text style={styles.title}>{item.title}</Text>
         </View>
       )}
-      estimatedItemSize={100}
     />
   );
 };
@@ -48,10 +47,6 @@ const styles = StyleSheet.create({
 
 export default MyList;
 ```
-
-<Note>
-  The `estimatedItemSize` prop helps FlashList optimize initial render. While not strictly required in v2, providing it can improve performance.
-</Note>
 
 ## Step-by-Step Tutorial
 
@@ -142,7 +137,6 @@ Let's build a more complete example with proper TypeScript types and best practi
             data={data}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
-            estimatedItemSize={80}
           />
         </View>
       );
@@ -255,7 +249,6 @@ const MyAdvancedList = () => {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemType={getItemType}
-        estimatedItemSize={125}
       />
     </View>
   );
@@ -298,7 +291,6 @@ export default MyAdvancedList;
 ### Important Props
 
 - **`keyExtractor`**: Function to extract unique keys (required for layout animations)
-- **`estimatedItemSize`**: Helps optimize initial render performance
 - **`getItemType`**: Optimizes recycling for lists with different item types
 
 ### Performance Optimization
@@ -336,7 +328,6 @@ import { FlashList } from "@shopify/flash-list";
   data={data}
   renderItem={renderItem}
   keyExtractor={keyExtractor}
-  estimatedItemSize={100}
 />
 ```
 
@@ -353,7 +344,6 @@ Create a grid with `numColumns`:
   data={data}
   renderItem={renderItem}
   numColumns={2}
-  estimatedItemSize={150}
 />
 ```
 
@@ -366,7 +356,6 @@ Create a horizontal scrolling list:
   data={data}
   renderItem={renderItem}
   horizontal
-  estimatedItemSize={200}
 />
 ```
 

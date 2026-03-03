@@ -5,33 +5,6 @@ description: Props for optimizing performance and controlling rendering behavior
 
 ## Essential Performance Props
 
-<ParamField path="estimatedItemSize" type="number" required>
-  This is the most important prop for FlashList performance. Provide an approximate size (height for vertical lists, width for horizontal) of your items.
-
-  FlashList uses this to determine how many items to render initially and to estimate scroll position before items are measured.
-
-  <Warning>
-    Inaccurate `estimatedItemSize` can lead to:
-    - Blank space during scrolling
-    - Performance issues
-    - Incorrect scroll position calculations
-  </Warning>
-
-  ```tsx
-  <FlashList
-    data={items}
-    renderItem={renderItem}
-    estimatedItemSize={100} // Items are ~100dp tall
-  />
-  ```
-
-  **Best Practices:**
-  - Measure a typical item and use that height/width
-  - Better to slightly overestimate than underestimate
-  - For variable-height items, use an average size
-  - Consider padding and margins in your calculation
-</ParamField>
-
 <ParamField path="drawDistance" type="number">
   Draw distance for advanced rendering (in dp/px). This controls how much content is rendered outside the visible viewport.
 
@@ -41,7 +14,6 @@ description: Props for optimizing performance and controlling rendering behavior
   <FlashList
     data={items}
     renderItem={renderItem}
-    estimatedItemSize={50}
     drawDistance={500} // Render 500dp worth of items beyond viewport
   />
   ```
@@ -73,7 +45,6 @@ description: Props for optimizing performance and controlling rendering behavior
         layout.span = maxColumns;
       }
     }}
-    estimatedItemSize={150}
   />
   ```
 
@@ -104,7 +75,6 @@ description: Props for optimizing performance and controlling rendering behavior
         layout.span = 2; // Featured items span both columns
       }
     }}
-    estimatedItemSize={200}
   />
   ```
 </ParamField>
@@ -125,7 +95,6 @@ description: Props for optimizing performance and controlling rendering behavior
     data={items}
     renderItem={renderItem}
     maxItemsInRecyclePool={10}
-    estimatedItemSize={50}
   />
   ```
 
@@ -162,7 +131,6 @@ description: Props for optimizing performance and controlling rendering behavior
       }
     }}
     getItemType={(item) => item.type}
-    estimatedItemSize={100}
   />
   ```
 
@@ -190,7 +158,6 @@ description: Props for optimizing performance and controlling rendering behavior
     data={items}
     renderItem={renderItem}
     removeClippedSubviews={true}
-    estimatedItemSize={50}
   />
   ```
 </ParamField>
@@ -210,7 +177,6 @@ description: Props for optimizing performance and controlling rendering behavior
       console.log(`List loaded in ${elapsedTimeInMs}ms`);
       analytics.track('list_load_time', { duration: elapsedTimeInMs });
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -236,7 +202,6 @@ description: Props for optimizing performance and controlling rendering behavior
       initialDrawBatchSize: 10,
       showsVerticalScrollIndicator: false,
     }}
-    estimatedItemSize={50}
   />
   ```
 
@@ -251,17 +216,7 @@ description: Props for optimizing performance and controlling rendering behavior
 
 ## Performance Best Practices
 
-### 1. Accurate estimatedItemSize
-
-```tsx
-// Good: Measured actual item size
-<FlashList estimatedItemSize={78} />
-
-// Bad: Wild guess
-<FlashList estimatedItemSize={50} /> // Items are actually 200dp
-```
-
-### 2. Use getItemType for Mixed Content
+### 1. Use getItemType for Mixed Content
 
 ```tsx
 // Good: Define item types
@@ -270,7 +225,7 @@ getItemType={(item) => item.type}
 // Bad: Not using getItemType when you have different layouts
 ```
 
-### 3. Optimize renderItem
+### 2. Optimize renderItem
 
 ```tsx
 // Good: Memoized component
@@ -281,7 +236,7 @@ renderItem={({ item }) => <MemoizedItem item={item} />}
 renderItem={({ item }) => <View><Text>{item.title}</Text></View>}
 ```
 
-### 4. Use extraData Properly
+### 3. Use extraData Properly
 
 ```tsx
 // Good: Pass only what's needed
@@ -291,7 +246,7 @@ extraData={selectedId}
 extraData={state}
 ```
 
-### 5. Key Extraction
+### 4. Key Extraction
 
 ```tsx
 // Good: Stable, unique keys
@@ -301,7 +256,7 @@ keyExtractor={(item) => item.id}
 keyExtractor={(item, index) => String(index)}
 ```
 
-### 6. Avoid Expensive Operations in Render Callbacks
+### 5. Avoid Expensive Operations in Render Callbacks
 
 ```tsx
 // Good: Fast, simple logic
@@ -318,12 +273,11 @@ getItemType={(item) => {
 
 ### Blank Space During Scrolling
 
-**Cause**: `estimatedItemSize` is too inaccurate or `drawDistance` is too low.
+**Cause**: `drawDistance` is too low.
 
 **Solution**:
 ```tsx
 <FlashList
-  estimatedItemSize={100} // Make more accurate
   drawDistance={500} // Increase if needed
 />
 ```

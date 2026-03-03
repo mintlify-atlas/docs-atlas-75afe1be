@@ -104,7 +104,6 @@ const MyFlashListComponent = () => {
         </View>
       )}
       keyExtractor={(item) => item.id}
-      estimatedItemSize={50}
     />
   );
 };
@@ -143,7 +142,6 @@ const ProductList = ({ products }: { products: Product[] }) => (
       </View>
     )}
     keyExtractor={(item) => item.id}
-    estimatedItemSize={80}
   />
 );
 
@@ -183,7 +181,6 @@ const ProductList = ({ products }: { products: Product[] }) => (
       </View>
     }
     keyExtractor={(item) => item.id}
-    estimatedItemSize={80}
   />
 );
 
@@ -230,7 +227,6 @@ const TodoList = () => {
         </Pressable>
       )}
       keyExtractor={(item) => item.id}
-      estimatedItemSize={50}
     />
   );
 };
@@ -299,7 +295,6 @@ const GridList = () => (
     numColumns={2}
     renderItem={({ item }) => <GridItem item={item} />}
     keyExtractor={(item) => item.id}
-    estimatedItemSize={150}
   />
 );
 
@@ -322,7 +317,6 @@ const MasonryList = () => (
     numColumns={3}
     renderItem={({ item }) => <MasonryCard item={item} />}
     keyExtractor={(item) => item.id}
-    estimatedItemSize={200}
   />
 );
 
@@ -358,7 +352,6 @@ const UserList = ({ users }: { users: User[] }) => (
       </View>
     )}
     keyExtractor={(item) => item.id}
-    estimatedItemSize={70}
   />
 );
 
@@ -535,7 +528,6 @@ const TaskList = () => {
         </Pressable>
       )}
       keyExtractor={(item) => item.id}
-      estimatedItemSize={60}
     />
   );
 };
