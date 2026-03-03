@@ -1,0 +1,257 @@
+---
+title: Data & Rendering Props
+description: Props for controlling data input and item rendering in FlashList
+---
+
+## Core Data Props
+
+<ParamField path="data" type="ReadonlyArray<TItem> | null | undefined" required>
+  For simplicity, data is a plain array of items of a given type.
+
+  ```tsx
+  <FlashList
+    data={[
+      { id: '1', title: 'First Item' },
+      { id: '2', title: 'Second Item' },
+    ]}
+    renderItem={renderItem}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="renderItem" type="ListRenderItem<TItem> | null | undefined" required>
+  Takes an item from `data` and renders it into the list. Provides additional metadata like `index` and `target`.
+
+  ```tsx
+  renderItem = ({ item, index, target }) => (
+    <View>
+      <Text>{item.title}</Text>
+    </View>
+  );
+  ```
+
+  The render function receives:
+  - `item` (Object): The item from `data` being rendered
+  - `index` (number): The index corresponding to this item in the `data` array
+  - `target` (RenderTarget): Indicates why the item is being rendered:
+    - `"Cell"` - Normal list item rendering
+    - `"Measurement"` - Invoked for size measurement (not visible, can be ignored in analytics)
+    - `"StickyHeader"` - Item is being used as a sticky header
+  - `extraData` (any): The value passed to the `extraData` prop
+</ParamField>
+
+<ParamField path="keyExtractor" type="(item: TItem, index: number) => string">
+  Used to extract a unique key for a given item at the specified index. Key is used for optimizing performance.
+
+  Defining `keyExtractor` is also necessary when doing [layout animations](https://shopify.github.io/flash-list/docs/guides/layout-animation) to uniquely identify animated components.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    keyExtractor={(item, index) => item.id}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="getItemType" type="(item: TItem, index: number, extraData?: any) => string | number | undefined">
+  Allows developers to override type of items. This will improve recycling if you have different types of items in the list. The right type will be used for the right item. Default type is 0.
+
+  If you don't want to change type for certain indexes, just return undefined.
+
+  <Warning>
+    **Performance**: This method is called very frequently. Keep it fast.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={({ item }) => {
+      if (item.type === 'header') return <HeaderItem {...item} />;
+      if (item.type === 'photo') return <PhotoItem {...item} />;
+      return <TextItem {...item} />;
+    }}
+    getItemType={(item) => item.type}
+    estimatedItemSize={100}
+  />
+  ```
+</ParamField>
+
+## Additional Data
+
+<ParamField path="extraData" type="any">
+  A marker property for telling the list to re-render (since it implements PureComponent).
+
+  If any of your `renderItem`, Header, Footer, etc. functions depend on anything outside of the `data` prop, stick it here and treat it immutably.
+
+  ```tsx
+  const [selectedId, setSelectedId] = useState(null);
+
+  <FlashList
+    data={items}
+    renderItem={({ item }) => (
+      <Item
+        item={item}
+        isSelected={item.id === selectedId}
+      />
+    )}
+    extraData={selectedId}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Component Props
+
+<ParamField path="CellRendererComponent" type="React.ComponentType<any>">
+  Each cell is rendered using this element. Can be a React Component Class, or a render function. The root component should always be a `CellContainer` which is also the default component used.
+
+  Ensure that the original `props` are passed to the returned `CellContainer`. The `props` will include:
+  - `onLayout`: Method for updating data about the real `CellContainer` layout
+  - `index`: Index of the cell in the list
+  - `style`: Style of `CellContainer`, including:
+    - `flexDirection`: Depends on whether your list is horizontal or vertical
+    - `position`: Value will be `absolute` (how FlashList positions elements)
+    - `left`: Position on x axis
+    - `top`: Position on y axis
+    - `width`: Width of element (present when list is vertical)
+    - `height`: Height of element (present when list is horizontal)
+
+  <Note>
+    Changing layout of the cell can conflict with native layout operations. You may need to set `disableAutoLayout` to `true` to prevent this.
+  </Note>
+</ParamField>
+
+<ParamField path="ItemSeparatorComponent" type="React.ComponentType<any> | null | undefined">
+  Rendered in between each item, but not at the top or bottom. By default, `leadingItem` and `trailingItem` (if available) props are provided.
+
+  ```tsx
+  const Separator = () => (
+    <View style={{ height: 1, backgroundColor: '#ccc' }} />
+  );
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ItemSeparatorComponent={Separator}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListEmptyComponent" type="React.ComponentType<any> | React.ReactElement | null | undefined">
+  Rendered when the list is empty. Can be a React Component (e.g. `SomeComponent`), or a React element (e.g. `<SomeComponent />`).
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ListEmptyComponent={() => (
+      <View style={{ padding: 20 }}>
+        <Text>No items found</Text>
+      </View>
+    )}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListHeaderComponent" type="React.ComponentType<any> | React.ReactElement | null | undefined">
+  Rendered at the top of all the items. Can be a React Component (e.g. `SomeComponent`), or a React element (e.g. `<SomeComponent />`).
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ListHeaderComponent={<HeaderComponent />}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListHeaderComponentStyle" type="StyleProp<ViewStyle>">
+  Styling for internal View for `ListHeaderComponent`.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ListHeaderComponent={<HeaderComponent />}
+    ListHeaderComponentStyle={{ paddingBottom: 20 }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListFooterComponent" type="React.ComponentType<any> | React.ReactElement | null | undefined">
+  Rendered at the bottom of all the items. Can be a React Component (e.g. `SomeComponent`), or a React element (e.g. `<SomeComponent />`).
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ListFooterComponent={<FooterComponent />}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListFooterComponentStyle" type="StyleProp<ViewStyle>">
+  Styling for internal View for `ListFooterComponent`.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    ListFooterComponent={<FooterComponent />}
+    ListFooterComponentStyle={{ paddingTop: 20 }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="renderScrollComponent" type="React.ComponentType<ScrollViewProps>">
+  Rendered as the main scrollview. Allows you to replace the internal ScrollView with a custom implementation.
+
+  ```tsx
+  import { ScrollView } from 'react-native';
+
+  const CustomScrollView = (props) => (
+    <ScrollView {...props} showsVerticalScrollIndicator={false} />
+  );
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    renderScrollComponent={CustomScrollView}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Type Reference
+
+### ListRenderItemInfo\<TItem\>
+
+The info object passed to `renderItem`:
+
+```typescript
+interface ListRenderItemInfo<TItem> {
+  item: TItem;
+  index: number;
+  target: "Cell" | "StickyHeader" | "Measurement";
+  extraData?: any;
+}
+```
+
+### ListRenderItem\<TItem\>
+
+The type for the `renderItem` function:
+
+```typescript
+type ListRenderItem<TItem> = (
+  info: ListRenderItemInfo<TItem>
+) => React.ReactElement | null;
+```

@@ -1,0 +1,395 @@
+---
+title: Troubleshooting
+description: Solutions to common problems when using FlashList
+---
+
+This guide helps you diagnose and fix common issues when working with FlashList.
+
+## Performance Issues
+
+### List Appears Slow in Development Mode
+
+<Warning>
+Before assessing your list's performance, make sure you are in release mode.
+</Warning>
+
+FlashList can appear to be slower than FlatList in dev mode. The primary reason is a much smaller and fixed window size. On Android, you can disable JS dev mode inside the developer menu, whereas you need to run the release configuration on iOS.
+
+**Solution:**
+
+```bash
+# iOS
+react-native run-ios --configuration Release
+
+# Android - disable JS dev mode in developer menu
+# Or run release build
+cd android && ./gradlew assembleRelease
+```
+
+### Items Are Slow to Render
+
+If your list is slow even in release mode, the issue is likely with your item components.
+
+**Check for these common issues:**
+
+1. **Using `key` prop in item components** - This prevents recycling
+2. **Heavy calculations in render** - Move to `useMemo` or compute outside render
+3. **Missing `getItemType`** - Use for heterogeneous lists
+4. **Not memoizing child components** - Use `memo()` for components that don't depend on item data
+
+See the [Performance](/fundamentals/performant-components) guide for detailed solutions.
+
+### Seeing Blank Areas While Scrolling
+
+Blank areas during scrolling usually indicate performance problems with your item components.
+
+**Common causes:**
+
+- Item components are too complex and slow to render
+- Heavy computations in `renderItem`
+- Images loading slowly without placeholders
+- Using non-memoized callbacks
+
+**Solutions:**
+
+```tsx
+// 1. Simplify item components
+const MyItem = memo(({ item }) => {
+  // Keep this as simple as possible
+  return <Text>{item.title}</Text>;
+});
+
+// 2. Use getItemType for different item types
+<FlashList
+  getItemType={(item) => item.type}
+  // ...
+/>
+
+// 3. Add image placeholders
+<Image
+  source={{ uri: item.imageUrl }}
+  defaultSource={require('./placeholder.png')}
+/>
+```
+
+## Recycling Issues
+
+### Items Show Wrong Data After Scrolling
+
+This happens when components have local state that isn't properly reset during recycling.
+
+**Problem:**
+
+```tsx
+// Wrong - state persists when recycled
+const MyItem = ({ item }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return <View>{/* ... */}</View>;
+};
+```
+
+**Solution:**
+
+Use `useRecyclingState` hook:
+
+```tsx
+import { useRecyclingState } from '@shopify/flash-list';
+
+const MyItem = ({ item }) => {
+  // State resets when item.id changes
+  const [isExpanded, setIsExpanded] = useRecyclingState(
+    false,
+    [item.id],
+    () => {
+      // Optional reset callback
+      console.log('State reset');
+    }
+  );
+  return <View>{/* ... */}</View>;
+};
+```
+
+### Key Prop Causing Performance Issues
+
+<Warning>
+Using `key` prop inside your item and item's nested components will highly degrade performance.
+</Warning>
+
+When you add a `key` prop that changes between different data items, React treats the component as entirely different and forces a complete re-creation of the component tree, preventing recycling.
+
+**Problem:**
+
+```tsx
+const MyItem = ({ item }) => {
+  return (
+    <View key={item.id}> {/* Don't do this! */}
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+**Solution:**
+
+Remove the `key` prop. FlashList handles keys automatically. If you're using `.map()` inside your item, use `useMappingHelper`:
+
+```tsx
+import { useMappingHelper } from '@shopify/flash-list';
+
+const MyItem = ({ item }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View>
+      {item.users.map((user, index) => (
+        <Text key={getMappingKey(user.id, index)}>
+          {user.name}
+        </Text>
+      ))}
+    </View>
+  );
+};
+```
+
+## Layout Issues
+
+### Items Not Appearing or Layout Incorrect
+
+**Check these common issues:**
+
+1. **Missing parent container dimensions**
+
+```tsx
+// FlashList needs a parent with defined dimensions
+<View style={{ flex: 1 }}> {/* Important! */}
+  <FlashList data={data} renderItem={renderItem} />
+</View>
+```
+
+2. **Incorrect `estimatedItemSize` (v1 only)**
+
+FlashList v2 doesn't require `estimatedItemSize`, but if you're on v1, make sure it's reasonably accurate.
+
+### Items Resizing or Jumping During Layout Changes
+
+Use the `useLayoutState` hook when you need to change item dimensions based on local state:
+
+```tsx
+import { useLayoutState } from '@shopify/flash-list';
+
+const MyItem = ({ item }) => {
+  const [isExpanded, setIsExpanded] = useLayoutState(false);
+  const height = isExpanded ? 150 : 80;
+
+  return (
+    <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+      <View style={{ height }}>
+        <Text>{item.title}</Text>
+      </View>
+    </Pressable>
+  );
+};
+```
+
+### Horizontal List Height Not Matching Content
+
+If using a header or fixed size with horizontal lists, the list assumes a fixed height. To have the list match the tallest item, render the header as the first item instead:
+
+```tsx
+const data = [{ type: 'header' }, ...items];
+
+<FlashList
+  horizontal
+  data={data}
+  getItemType={(item) => item.type}
+  renderItem={({ item }) => {
+    if (item.type === 'header') return <Header />;
+    return <Item item={item} />;
+  }}
+/>
+```
+
+## Testing Issues
+
+### All Items Mount in Jest Tests
+
+By default, FlashList will mount all items in the test environment.
+
+**Solution:**
+
+Add the FlashList jest setup to your `jest-setup.js`:
+
+```js
+require('@shopify/flash-list/jestSetup');
+```
+
+Ensure your `jest.config.js` references the setup file:
+
+```js
+module.exports = {
+  preset: 'react-native',
+  setupFiles: ['./jest-setup.js'],
+};
+```
+
+## Error Messages
+
+### "Horizontal prop cannot be toggled"
+
+You cannot dynamically change the `horizontal` prop. Use a `key` to force recreation:
+
+```tsx
+<FlashList
+  key={isHorizontal ? 'h' : 'v'}
+  horizontal={isHorizontal}
+  // ...
+/>
+```
+
+### "Masonry and horizontal props are incompatible"
+
+Masonry layout only works with vertical lists. Remove either `masonry` or `horizontal`:
+
+```tsx
+// Correct
+<FlashList
+  masonry
+  numColumns={2}
+  // horizontal={false} is implied
+/>
+```
+
+### "numColumns and horizontal props are incompatible"
+
+Multiple columns only work with vertical lists:
+
+```tsx
+// Correct
+<FlashList
+  numColumns={3}
+  // horizontal={false} is implied
+/>
+```
+
+### "Sticky headers are not supported when list is horizontal"
+
+Sticky headers only work with vertical lists. Remove `stickyHeaderIndices` or `stickyHeaderConfig` for horizontal lists.
+
+### "FlashList v2 is only supported on new architecture"
+
+FlashList v2 requires React Native's new architecture. Either:
+
+1. Enable the new architecture in your app
+2. Use [FlashList v1](https://shopify.github.io/flash-list/docs/1.x/) for the old architecture
+
+### "Exceeded max renders without commit"
+
+<Warning>
+This warning indicates duplicate keys or nested ScrollView issues.
+</Warning>
+
+This might mean:
+
+1. **Duplicate keys** - Check your `keyExtractor` returns unique values:
+
+```tsx
+<FlashList
+  keyExtractor={(item, index) => `${item.id}-${index}`}
+  // ...
+/>
+```
+
+2. **Nested in ScrollView** - Don't nest FlashList inside ScrollView:
+
+```tsx
+// Wrong
+<ScrollView>
+  <FlashList data={data} renderItem={renderItem} />
+</ScrollView>
+
+// Correct
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  ListHeaderComponent={<OtherContent />}
+/>
+```
+
+## ScrollTo Issues
+
+### `scrollToIndex` Not Working Accurately
+
+For precise scrolling, especially in RTL horizontal lists or with `initialScrollIndex`, ensure:
+
+1. Don't use padding in `contentContainerStyle` for RTL horizontal lists
+2. Define a proper `keyExtractor`:
+
+```tsx
+<FlashList
+  keyExtractor={(item) => item.id}
+  // ...
+/>
+```
+
+### `initialScrollIndex` Not Working
+
+Make sure:
+
+1. `keyExtractor` is properly defined
+2. For horizontal RTL lists, avoid padding in `contentContainerStyle`
+
+```tsx
+<FlashList
+  initialScrollIndex={10}
+  keyExtractor={(item) => item.id}
+  // ...
+/>
+```
+
+## Data Updates Not Reflecting
+
+### List Not Updating When Data Changes
+
+Use `extraData` to tell FlashList about dependencies:
+
+```tsx
+const [selectedId, setSelectedId] = useState(null);
+
+<FlashList
+  data={data}
+  extraData={selectedId} // Include external dependencies
+  renderItem={({ item }) => (
+    <Item
+      item={item}
+      isSelected={item.id === selectedId}
+    />
+  )}
+/>
+```
+
+### Items Not Re-rendering on Prop Changes
+
+Memoizing props passed to FlashList is more important in v2. Make sure you're memoizing callbacks:
+
+```tsx
+const renderItem = useCallback(({ item }) => {
+  return <MyItem item={item} />;
+}, []);
+
+const keyExtractor = useCallback((item) => item.id, []);
+
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  keyExtractor={keyExtractor}
+/>
+```
+
+## Still Having Issues?
+
+If you can't find a solution here:
+
+1. Check the [Known Issues](/known-issues) page
+2. Search existing [GitHub issues](https://github.com/Shopify/flash-list/issues)
+3. Ask on the [Discord community](https://discord.gg/k2gzABTfav)
+4. Create a [new issue](https://github.com/Shopify/flash-list/issues/new) with a minimal reproduction

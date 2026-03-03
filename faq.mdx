@@ -1,0 +1,530 @@
+---
+title: FAQ
+description: Frequently asked questions about FlashList
+---
+
+Frequently asked questions about FlashList. Can't find what you're looking for? Ask on our [Discord community](https://discord.gg/k2gzABTfav).
+
+## General
+
+<AccordionGroup>
+  <Accordion title="What is FlashList?">
+    FlashList is a fast and performant React Native list component that eliminates blank cells during scrolling. It's a drop-in replacement for FlatList with superior performance through view recycling.
+
+    Key benefits:
+    - No more blank cells during scrolling
+    - Better memory efficiency through view recycling
+    - Faster initial render
+    - Support for complex layouts (masonry, grids, sticky headers)
+    - FlashList v2 is JS-only and doesn't require size estimates
+  </Accordion>
+
+  <Accordion title="How is FlashList different from FlatList?">
+    FlashList uses a fundamentally different rendering approach:
+
+    - **View Recycling**: Instead of creating and destroying views, FlashList recycles them by updating their content
+    - **No Estimates Required (v2)**: FlashList v2 automatically handles item sizing without estimates
+    - **Better Performance**: Maintains 60 FPS even with complex items
+    - **Lower Memory Usage**: Recycling views reduces memory overhead
+
+    The API is almost identical to FlatList, so migration is straightforward.
+  </Accordion>
+
+  <Accordion title="Should I use FlashList v1 or v2?">
+    **Use FlashList v2 if:**
+    - You're on React Native's new architecture (required for v2)
+    - You want the best performance and don't want to manage size estimates
+    - You're starting a new project
+
+    **Use FlashList v1 if:**
+    - You're on the old architecture
+    - You need time to migrate to the new architecture
+
+    FlashList v2 is built from the ground up for the new architecture and offers better performance, higher precision, and improved ease of use.
+  </Accordion>
+
+  <Accordion title="Can I use FlashList with Expo?">
+    Yes! FlashList works with Expo. Install it using:
+
+    ```bash
+    npx expo install @shopify/flash-list
+    ```
+
+    For FlashList v2, make sure you have the new architecture enabled in your Expo app.
+  </Accordion>
+
+  <Accordion title="Is FlashList production-ready?">
+    Yes! FlashList is used in production by Shopify and many other companies. It's battle-tested and handles millions of users daily.
+  </Accordion>
+</AccordionGroup>
+
+## Migration
+
+<AccordionGroup>
+  <Accordion title="How do I migrate from FlatList to FlashList?">
+    Migration is straightforward:
+
+    1. Change the import:
+    ```tsx
+    // Before
+    import { FlatList } from 'react-native';
+
+    // After
+    import { FlashList } from '@shopify/flash-list';
+    ```
+
+    2. Update the component name:
+    ```tsx
+    <FlashList data={data} renderItem={renderItem} />
+    ```
+
+    3. Remove any `key` props from your item components
+    4. Add `keyExtractor` if not already defined (recommended for v2)
+    5. Use `getItemType` for heterogeneous lists
+    6. Test in release mode
+
+    See the [Usage](/fundamentals/usage) guide for detailed migration steps.
+  </Accordion>
+
+  <Accordion title="What props are different from FlatList?">
+    Most props are identical. Key differences:
+
+    **Not needed in v2:**
+    - `estimatedItemSize` (v2 handles sizing automatically)
+
+    **Not supported:**
+    - `getItemLayout`
+    - `initialNumToRender`
+    - `maxToRenderPerBatch`
+    - `windowSize`
+    - `columnWrapperStyle`
+
+    **New props in FlashList:**
+    - `getItemType` - Improves performance for mixed item types
+    - `drawDistance` - Advanced rendering control
+    - `maxItemsInRecyclePool` - Control recycling behavior
+
+    See [Known Issues](/known-issues) for the complete list.
+  </Accordion>
+
+  <Accordion title="Do I need estimatedItemSize in v2?">
+    No! FlashList v2 automatically handles item sizing without requiring estimates. This was a major improvement from v1.
+
+    If you're migrating from v1, you can safely remove `estimatedItemSize` from your code.
+  </Accordion>
+
+  <Accordion title="My FlatList works fine. Why should I migrate?">
+    Even if FlatList performs well for you, FlashList offers:
+
+    - **Better user experience**: Eliminates blank cells during fast scrolling
+    - **Lower memory usage**: Recycling reduces memory pressure
+    - **More features**: Masonry layouts, better sticky headers, layout animations
+    - **Future-proof**: Built for React Native's new architecture
+    - **Same API**: Easy migration with minimal code changes
+
+    Try it on one list and see the difference!
+  </Accordion>
+</AccordionGroup>
+
+## Performance
+
+<AccordionGroup>
+  <Accordion title="Why does FlashList appear slow in dev mode?">
+    FlashList can appear slower in dev mode due to a smaller render buffer. **Always test performance in release mode**.
+
+    Dev mode includes extra overhead that doesn't exist in production:
+    - Additional logging and checks
+    - Non-optimized JavaScript execution
+    - React DevTools overhead
+
+    Run in release mode:
+    ```bash
+    # iOS
+    react-native run-ios --configuration Release
+
+    # Android
+    cd android && ./gradlew assembleRelease
+    ```
+  </Accordion>
+
+  <Accordion title="How do I optimize FlashList performance?">
+    Follow these best practices:
+
+    1. **Remove `key` props** from item components and nested components
+    2. **Use `getItemType`** for lists with different item types
+    3. **Memoize callbacks** passed to FlashList (especially in v2)
+    4. **Keep items simple** - complex components slow down recycling
+    5. **Use `useMappingHelper`** when mapping arrays inside items
+    6. **Avoid heavy calculations** in render - use `useMemo`
+    7. **Memoize child components** that don't depend on item data
+
+    See the [Performance](/fundamentals/performant-components) guide for detailed tips.
+  </Accordion>
+
+  <Accordion title="Why am I seeing blank areas during scrolling?">
+    Blank areas indicate your item components are slow to render. Common causes:
+
+    - Using `key` prop in items (prevents recycling)
+    - Heavy computations in render
+    - Not using `getItemType` for heterogeneous lists
+    - Complex component hierarchies
+    - Slow image loading
+
+    **Quick fixes:**
+    - Remove `key` props from item components
+    - Add `getItemType` for different item types
+    - Memoize child components with `memo()`
+    - Use image placeholders
+
+    See [Troubleshooting](/troubleshooting#seeing-blank-areas-while-scrolling) for solutions.
+  </Accordion>
+
+  <Accordion title="What is getItemType and when should I use it?">
+    `getItemType` tells FlashList about different types of items in your list. FlashList maintains separate recycling pools for each type, preventing expensive re-renders when recycling items.
+
+    **Use it when:**
+    - Your list has different types of items (e.g., posts, ads, headers)
+    - Items have significantly different layouts or heights
+    - You notice performance issues with mixed content
+
+    ```tsx
+    <FlashList
+      data={data}
+      getItemType={(item) => item.type} // 'post', 'ad', 'header', etc.
+      renderItem={({ item }) => {
+        switch (item.type) {
+          case 'post': return <PostItem item={item} />;
+          case 'ad': return <AdItem item={item} />;
+          default: return null;
+        }
+      }}
+    />
+    ```
+  </Accordion>
+
+  <Accordion title="How many items can FlashList handle?">
+    FlashList can efficiently handle thousands of items. The exact number depends on:
+
+    - Item complexity
+    - Device performance
+    - Memory available
+
+    FlashList's recycling ensures that only visible items (plus a small buffer) are rendered, so total item count has minimal impact on performance.
+
+    Lists with 10,000+ items perform well if item components are optimized.
+  </Accordion>
+</AccordionGroup>
+
+## Recycling
+
+<AccordionGroup>
+  <Accordion title="What is view recycling?">
+    View recycling is FlashList's core optimization. Instead of creating new components when scrolling, FlashList reuses (recycles) existing components by updating their props.
+
+    **How it works:**
+    1. When an item scrolls off screen, its component is kept in a recycle pool
+    2. When a new item needs to be shown, a component from the pool is reused
+    3. The component is re-rendered with the new item's data
+
+    This is much faster than destroying and creating components, but requires proper handling of local state.
+  </Accordion>
+
+  <Accordion title="Why is my item showing wrong data after scrolling?">
+    This happens when your item component has local state that isn't reset during recycling.
+
+    **Problem:**
+    ```tsx
+    const MyItem = ({ item }) => {
+      const [liked, setLiked] = useState(false);
+      // State persists when component is recycled!
+    };
+    ```
+
+    **Solution:**
+    Use `useRecyclingState` hook:
+    ```tsx
+    import { useRecyclingState } from '@shopify/flash-list';
+
+    const MyItem = ({ item }) => {
+      const [liked, setLiked] = useRecyclingState(
+        item.liked, // initial value
+        [item.id]    // reset when this changes
+      );
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Can I disable recycling?">
+    Yes, but you shouldn't. Disabling recycling defeats the purpose of using FlashList.
+
+    If you absolutely need to:
+    ```tsx
+    <FlashList maxItemsInRecyclePool={0} />
+    ```
+
+    This will unmount items when they scroll off screen, similar to FlatList, but you'll lose performance benefits.
+
+    Instead, fix recycling issues using `useRecyclingState` or properly handling state in your components.
+  </Accordion>
+
+  <Accordion title="Why can't I use key prop in my items?">
+    Using `key` prop in items prevents recycling because React treats components with different keys as completely different components.
+
+    ```tsx
+    // Wrong - prevents recycling
+    <View key={item.id}>
+      <Text>{item.title}</Text>
+    </View>
+
+    // Correct - FlashList handles keys
+    <View>
+      <Text>{item.title}</Text>
+    </View>
+    ```
+
+    FlashList manages keys internally using `keyExtractor`. For mapping inside items, use `useMappingHelper`:
+
+    ```tsx
+    import { useMappingHelper } from '@shopify/flash-list';
+
+    const MyItem = ({ item }) => {
+      const { getMappingKey } = useMappingHelper();
+      return (
+        <View>
+          {item.tags.map((tag, index) => (
+            <Text key={getMappingKey(tag.id, index)}>{tag.name}</Text>
+          ))}
+        </View>
+      );
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Features
+
+<AccordionGroup>
+  <Accordion title="Does FlashList support horizontal lists?">
+    Yes! Set `horizontal={true}`:
+
+    ```tsx
+    <FlashList
+      horizontal
+      data={data}
+      renderItem={renderItem}
+    />
+    ```
+
+    **Note:** The `horizontal` prop cannot be toggled dynamically. Use a `key` to force recreation if needed.
+  </Accordion>
+
+  <Accordion title="Can I use sticky headers?">
+    Yes, FlashList supports sticky headers in vertical lists:
+
+    ```tsx
+    <FlashList
+      data={data}
+      stickyHeaderIndices={[0, 10, 20]}
+      stickyHeaderConfig={{
+        useNativeDriver: true,
+        offset: 50,
+        backdropComponent: <BlurView />,
+      }}
+      renderItem={renderItem}
+    />
+    ```
+
+    Sticky headers are not supported in horizontal lists.
+  </Accordion>
+
+  <Accordion title="Does FlashList support grid/masonry layouts?">
+    Yes! FlashList supports both grids and masonry layouts.
+
+    **Grid (equal heights):**
+    ```tsx
+    <FlashList
+      data={data}
+      numColumns={3}
+      renderItem={renderItem}
+    />
+    ```
+
+    **Masonry (varying heights):**
+    ```tsx
+    <FlashList
+      data={data}
+      numColumns={3}
+      masonry
+      renderItem={renderItem}
+    />
+    ```
+
+    See the [Masonry Layout](/guides/masonry-layout) guide for details.
+  </Accordion>
+
+  <Accordion title="Can I use FlashList for a chat interface?">
+    Yes! Use `maintainVisibleContentPosition` for chat-style interfaces:
+
+    ```tsx
+    <FlashList
+      data={messages}
+      maintainVisibleContentPosition={{
+        autoscrollToBottomThreshold: 0.2,
+        startRenderingFromBottom: true,
+      }}
+      renderItem={({ item }) => <Message message={item} />}
+    />
+    ```
+
+    This handles new messages being added while maintaining scroll position.
+  </Accordion>
+
+  <Accordion title="Does FlashList work with animations?">
+    Yes! FlashList supports:
+
+    - Layout animations (insert/delete)
+    - Reanimated integration
+    - Custom animated components
+
+    For layout animations, call `prepareForLayoutAnimationRender()` before animating:
+
+    ```tsx
+    const flashListRef = useRef(null);
+
+    const deleteItem = () => {
+      flashListRef.current?.prepareForLayoutAnimationRender();
+      // Update data to trigger animation
+      setData(data.filter(item => item.id !== selectedId));
+    };
+    ```
+
+    See the [Layout Animation](/guides/layout-animation) guide for details.
+  </Accordion>
+
+  <Accordion title="Can I nest FlashLists?">
+    Yes, but follow these guidelines:
+
+    1. **Horizontal inside vertical** - Use FlashList for the vertical list too for best performance
+    2. **Never nest in ScrollView** - This breaks virtualization
+    3. **Use proper keys** - Define `keyExtractor` on both lists
+
+    ```tsx
+    <FlashList
+      data={sections}
+      renderItem={({ item: section }) => (
+        <FlashList
+          horizontal
+          data={section.items}
+          renderItem={({ item }) => <Item item={item} />}
+          keyExtractor={(item) => item.id}
+        />
+      )}
+      keyExtractor={(section) => section.id}
+    />
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing
+
+<AccordionGroup>
+  <Accordion title="How do I test FlashList with Jest?">
+    Add FlashList's jest setup to your `jest-setup.js`:
+
+    ```js
+    require('@shopify/flash-list/jestSetup');
+    ```
+
+    Ensure your `jest.config.js` references it:
+
+    ```js
+    module.exports = {
+      preset: 'react-native',
+      setupFiles: ['./jest-setup.js'],
+    };
+    ```
+
+    Then test normally with React Native Testing Library:
+
+    ```tsx
+    import { render } from '@testing-library/react-native';
+
+    it('renders items', () => {
+      const { getByText } = render(<MyFlashList />);
+      expect(getByText('First Item')).toBeTruthy();
+    });
+    ```
+
+    See the [Testing](/guides/testing) guide for details.
+  </Accordion>
+
+  <Accordion title="How do I measure FlashList performance?">
+    Use the built-in `onBlankArea` callback:
+
+    ```tsx
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      onBlankArea={({ blankArea, offsetStart, offsetEnd }) => {
+        if (blankArea > 0) {
+          console.log('Blank area visible:', blankArea);
+        }
+      }}
+    />
+    ```
+
+    For comprehensive profiling, see the [List Profiling](/guides/list-profiling) guide.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Getting 'FlashList v2 is only supported on new architecture' error?">
+    FlashList v2 requires React Native's new architecture. You have two options:
+
+    1. **Enable new architecture** in your app (recommended)
+    2. **Use FlashList v1** which supports old architecture
+
+    To use v1, install the 1.x version and refer to the [v1 documentation](https://shopify.github.io/flash-list/docs/1.x/).
+  </Accordion>
+
+  <Accordion title="Getting 'Horizontal prop cannot be toggled' error?">
+    You cannot dynamically change `horizontal` prop. Use a `key` to force recreation:
+
+    ```tsx
+    <FlashList
+      key={isHorizontal ? 'h' : 'v'} // Force recreation
+      horizontal={isHorizontal}
+      data={data}
+      renderItem={renderItem}
+    />
+    ```
+  </Accordion>
+
+  <Accordion title="Items not updating when data changes?">
+    Use `extraData` to tell FlashList about external dependencies:
+
+    ```tsx
+    const [selectedId, setSelectedId] = useState(null);
+
+    <FlashList
+      data={data}
+      extraData={selectedId} // Include external state
+      renderItem={({ item }) => (
+        <Item
+          item={item}
+          isSelected={item.id === selectedId}
+        />
+      )}
+    />
+    ```
+  </Accordion>
+
+  <Accordion title="Where can I get help?">
+    - Check the [Troubleshooting](/troubleshooting) guide
+    - Search [GitHub issues](https://github.com/Shopify/flash-list/issues)
+    - Ask on [Discord community](https://discord.gg/k2gzABTfav)
+    - Create a [new issue](https://github.com/Shopify/flash-list/issues/new) with reproduction
+  </Accordion>
+</AccordionGroup>

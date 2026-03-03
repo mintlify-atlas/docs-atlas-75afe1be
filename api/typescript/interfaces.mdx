@@ -1,0 +1,927 @@
+---
+title: Interfaces
+description: TypeScript interfaces exported by FlashList for type-safe development
+---
+
+FlashList exports several interfaces that define the shape of objects used throughout the API. Use these interfaces to ensure type safety in your implementations.
+
+## FlashListProps
+
+Main props interface for the FlashList component. Extends React Native's `ScrollViewProps` with FlashList-specific properties.
+
+```typescript
+interface FlashListProps<TItem> extends Omit<ScrollViewProps, 'maintainVisibleContentPosition'>
+```
+
+### Type Parameters
+
+- `TItem` - The type of items in your data array
+
+### Core Props
+
+#### data
+
+The array of items to render.
+
+```typescript
+data: ReadonlyArray<TItem> | null | undefined;
+```
+
+#### renderItem
+
+Function to render each item.
+
+```typescript
+renderItem: ListRenderItem<TItem> | null | undefined;
+```
+
+#### estimatedItemSize
+
+Estimated size of items for optimal performance. **Required prop** for good performance.
+
+```typescript
+estimatedItemSize: number;
+```
+
+See the [FlashList Props](/api/props/data-and-rendering) reference for all available props and detailed documentation.
+
+### Example
+
+```tsx
+import { FlashList, FlashListProps } from '@shopify/flash-list';
+
+interface Message {
+  id: string;
+  text: string;
+  sender: string;
+}
+
+const ChatList = (props: FlashListProps<Message>) => {
+  return <FlashList {...props} />;
+};
+
+function ChatScreen({ messages }: { messages: Message[] }) {
+  return (
+    <ChatList
+      data={messages}
+      renderItem={renderMessage}
+      estimatedItemSize={60}
+      keyExtractor={(item) => item.id}
+    />
+  );
+}
+```
+
+## FlashListRef
+
+Interface for the ref object that provides imperative methods to control FlashList behavior.
+
+```typescript
+interface FlashListRef<T>
+```
+
+### Type Parameters
+
+- `T` - The type of items in your data array
+
+### Properties
+
+#### props
+
+Access to current FlashList props.
+
+```typescript
+props: RecyclerViewProps<T>;
+```
+
+### Scroll Methods
+
+#### scrollToIndex
+
+Scrolls to a specific item by index.
+
+```typescript
+scrollToIndex(params: ScrollToIndexParams): Promise<void>;
+```
+
+#### scrollToItem
+
+Scrolls to a specific item by reference.
+
+```typescript
+scrollToItem(params: ScrollToItemParams<T>): void;
+```
+
+#### scrollToOffset
+
+Scrolls to a specific pixel offset.
+
+```typescript
+scrollToOffset(params: ScrollToOffsetParams): void;
+```
+
+#### scrollToEnd
+
+Scrolls to the end of the list.
+
+```typescript
+scrollToEnd(params?: ScrollToEdgeParams): void;
+```
+
+#### scrollToTop
+
+Scrolls to the top of the list.
+
+```typescript
+scrollToTop(params?: ScrollToEdgeParams): void;
+```
+
+### Layout Methods
+
+#### getLayout
+
+Returns layout information for an item at a specific index.
+
+```typescript
+getLayout(index: number): RVLayout | undefined;
+```
+
+#### getWindowSize
+
+Returns the current viewport dimensions.
+
+```typescript
+getWindowSize(): { width: number; height: number };
+```
+
+#### getFirstItemOffset
+
+Returns the offset of the first item (accounting for headers/padding).
+
+```typescript
+getFirstItemOffset(): number;
+```
+
+#### getChildContainerDimensions
+
+Returns the dimensions of the child container.
+
+```typescript
+getChildContainerDimensions(): { width: number; height: number };
+```
+
+### Visibility Methods
+
+#### computeVisibleIndices
+
+Returns the currently visible item indices.
+
+```typescript
+computeVisibleIndices(): { startIndex: number; endIndex: number };
+```
+
+#### getFirstVisibleIndex
+
+Returns the index of the first visible item.
+
+```typescript
+getFirstVisibleIndex(): number;
+```
+
+#### recomputeViewableItems
+
+Forces recalculation of viewable items (triggers viewability callbacks).
+
+```typescript
+recomputeViewableItems(): void;
+```
+
+#### recordInteraction
+
+Marks the list as having been interacted with.
+
+```typescript
+recordInteraction(): void;
+```
+
+### Other Methods
+
+#### flashScrollIndicators
+
+Makes scroll indicators flash momentarily.
+
+```typescript
+flashScrollIndicators(): void;
+```
+
+#### prepareForLayoutAnimationRender
+
+Disables recycling in preparation for layout animations.
+
+```typescript
+prepareForLayoutAnimationRender(): void;
+```
+
+#### clearLayoutCacheOnUpdate
+
+Clears the layout cache on the next update.
+
+```typescript
+clearLayoutCacheOnUpdate(): void;
+```
+
+#### getNativeScrollRef
+
+Returns the underlying native scroll view reference.
+
+```typescript
+getNativeScrollRef(): CompatScroller | null;
+```
+
+#### getScrollResponder
+
+Returns a reference to the scroll responder.
+
+```typescript
+getScrollResponder: CompatScroller['getScrollResponder'];
+```
+
+#### getScrollableNode
+
+Returns the underlying scrollable node.
+
+```typescript
+getScrollableNode(): any;
+```
+
+#### getAbsoluteLastScrollOffset
+
+Returns the absolute last scroll offset.
+
+```typescript
+getAbsoluteLastScrollOffset(): number;
+```
+
+### Example
+
+```tsx
+import { useRef } from 'react';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
+
+function MyList({ data }: { data: Item[] }) {
+  const listRef = useRef<FlashListRef<Item>>(null);
+
+  const scrollToTop = () => {
+    listRef.current?.scrollToTop({ animated: true });
+  };
+
+  const scrollToItem = (itemId: string) => {
+    const index = data.findIndex(item => item.id === itemId);
+    if (index !== -1) {
+      listRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5, // Center the item
+      });
+    }
+  };
+
+  const checkVisibility = () => {
+    const { startIndex, endIndex } = 
+      listRef.current?.computeVisibleIndices() ?? {};
+    console.log(`Visible items: ${startIndex} to ${endIndex}`);
+  };
+
+  return (
+    <>
+      <FlashList
+        ref={listRef}
+        data={data}
+        renderItem={renderItem}
+        estimatedItemSize={100}
+      />
+      <Button onPress={scrollToTop} title="Scroll to Top" />
+      <Button onPress={checkVisibility} title="Check Visibility" />
+    </>
+  );
+}
+```
+
+## ListRenderItemInfo
+
+Information passed to the renderItem function for each item.
+
+```typescript
+interface ListRenderItemInfo<TItem> {
+  item: TItem;
+  index: number;
+  target: RenderTarget;
+  extraData?: any;
+}
+```
+
+### Properties
+
+#### item
+
+The item from your data array.
+
+```typescript
+item: TItem;
+```
+
+#### index
+
+The index of this item in the data array.
+
+```typescript
+index: number;
+```
+
+#### target
+
+Why FlashList is rendering this item. See [RenderTarget](/api/typescript/types#rendertarget).
+
+```typescript
+target: RenderTarget;
+```
+
+#### extraData
+
+The extraData prop value, if provided.
+
+```typescript
+extraData?: any;
+```
+
+### Example
+
+```tsx
+import { ListRenderItemInfo } from '@shopify/flash-list';
+
+interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+function renderTask(info: ListRenderItemInfo<Task>) {
+  const { item, index, target } = info;
+
+  // Skip analytics during measurement
+  if (target === 'Measurement') {
+    return <TaskCard task={item} />;
+  }
+
+  return (
+    <TaskCard
+      task={item}
+      position={index + 1}
+      onToggle={() => toggleTask(item.id)}
+    />
+  );
+}
+```
+
+## ViewToken
+
+Represents a viewable item with metadata about its visibility.
+
+```typescript
+interface ViewToken<T> {
+  item: T;
+  key: string;
+  index: number | null;
+  isViewable: boolean;
+  timestamp: number;
+}
+```
+
+### Properties
+
+#### item
+
+The item from your data array.
+
+```typescript
+item: T;
+```
+
+#### key
+
+Unique key for the item.
+
+```typescript
+key: string;
+```
+
+#### index
+
+Index of the item in the data array (null if item is not in data).
+
+```typescript
+index: number | null;
+```
+
+#### isViewable
+
+Whether the item is currently viewable.
+
+```typescript
+isViewable: boolean;
+```
+
+#### timestamp
+
+Timestamp when viewability changed (use for tracking view duration).
+
+```typescript
+timestamp: number;
+```
+
+### Example
+
+```tsx
+import { FlashList, ViewToken } from '@shopify/flash-list';
+
+interface Video {
+  id: string;
+  url: string;
+}
+
+function VideoFeed({ videos }: { videos: Video[] }) {
+  const viewTimestamps = useRef<Map<string, number>>(new Map());
+
+  const handleViewableItemsChanged = ({
+    viewableItems,
+    changed,
+  }: {
+    viewableItems: ViewToken<Video>[];
+    changed: ViewToken<Video>[];
+  }) => {
+    changed.forEach(token => {
+      if (token.isViewable) {
+        // Item became viewable - record timestamp
+        viewTimestamps.current.set(token.key, token.timestamp);
+      } else {
+        // Item is no longer viewable - calculate duration
+        const startTime = viewTimestamps.current.get(token.key);
+        if (startTime) {
+          const duration = token.timestamp - startTime;
+          trackVideoView(token.item.id, duration);
+          viewTimestamps.current.delete(token.key);
+        }
+      }
+    });
+  };
+
+  return (
+    <FlashList
+      data={videos}
+      renderItem={renderVideo}
+      estimatedItemSize={400}
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={{
+        itemVisiblePercentThreshold: 50,
+        minimumViewTime: 500,
+      }}
+    />
+  );
+}
+```
+
+## ViewabilityConfigCallbackPair
+
+Pairs a viewability configuration with its callback.
+
+```typescript
+interface ViewabilityConfigCallbackPair<TItem> {
+  viewabilityConfig: ViewabilityConfig;
+  onViewableItemsChanged: ((info: {
+    viewableItems: ViewToken<TItem>[];
+    changed: ViewToken<TItem>[];
+  }) => void) | null;
+}
+```
+
+### Properties
+
+#### viewabilityConfig
+
+React Native's ViewabilityConfig object.
+
+```typescript
+viewabilityConfig: ViewabilityConfig;
+```
+
+#### onViewableItemsChanged
+
+Callback when viewable items change.
+
+```typescript
+onViewableItemsChanged: ((info: {
+  viewableItems: ViewToken<TItem>[];
+  changed: ViewToken<TItem>[];
+}) => void) | null;
+```
+
+## Scroll Parameter Interfaces
+
+Interfaces for scroll method parameters.
+
+### ScrollToEdgeParams
+
+Base parameters for scrolling to the edges of the list.
+
+```typescript
+interface ScrollToEdgeParams {
+  animated?: boolean;
+}
+```
+
+### ScrollToParams
+
+Parameters for scrolling to a specific position.
+
+```typescript
+interface ScrollToParams extends ScrollToEdgeParams {
+  viewPosition?: number;
+  viewOffset?: number;
+}
+```
+
+#### Properties
+
+- `animated` - Whether the scroll should be animated
+- `viewPosition` - Position of the target item relative to viewport (0 = top, 0.5 = center, 1 = bottom)
+- `viewOffset` - Additional offset to apply after viewPosition calculation
+
+### ScrollToOffsetParams
+
+Parameters for scrolling to a specific offset.
+
+```typescript
+interface ScrollToOffsetParams extends ScrollToParams {
+  offset: number;
+  skipFirstItemOffset?: boolean;
+}
+```
+
+#### Properties
+
+- `offset` - The pixel offset to scroll to
+- `skipFirstItemOffset` - If true, first item offset (headers/padding) will not be added
+
+### ScrollToIndexParams
+
+Parameters for scrolling to a specific index.
+
+```typescript
+interface ScrollToIndexParams extends ScrollToParams {
+  index: number;
+}
+```
+
+#### Properties
+
+- `index` - The index of the item to scroll to
+
+### ScrollToItemParams
+
+Parameters for scrolling to a specific item.
+
+```typescript
+interface ScrollToItemParams<T> extends ScrollToParams {
+  item: T;
+}
+```
+
+#### Properties
+
+- `item` - The item to scroll to
+
+### Example
+
+```tsx
+import { FlashListRef, ScrollToIndexParams } from '@shopify/flash-list';
+
+function scrollToNewMessage(listRef: RefObject<FlashListRef<Message>>) {
+  const params: ScrollToIndexParams = {
+    index: 0,
+    animated: true,
+    viewPosition: 0, // Align to top
+    viewOffset: 50,  // Add 50px offset
+  };
+
+  listRef.current?.scrollToIndex(params);
+}
+```
+
+## Benchmark Interfaces
+
+Interfaces for benchmarking FlashList performance.
+
+### BenchmarkParams
+
+Parameters for running benchmarks.
+
+```typescript
+interface BenchmarkParams {
+  startDelayInMs?: number;
+  speedMultiplier?: number;
+  repeatCount?: number;
+  sumNegativeBlankAreaValues?: boolean;
+  startManually?: boolean;
+}
+```
+
+#### Properties
+
+- `startDelayInMs` - Delay before starting the benchmark (default: 3000)
+- `speedMultiplier` - Multiplier to increase or decrease scroll speed
+- `repeatCount` - Number of times to repeat the benchmark
+- `sumNegativeBlankAreaValues` - Include negative blank area in cumulative sum
+- `startManually` - If true, benchmark won't start automatically
+
+### BenchmarkResult
+
+Results from running a benchmark.
+
+```typescript
+interface BenchmarkResult {
+  js?: JSFPSResult;
+  interrupted: boolean;
+  suggestions: string[];
+  formattedString?: string;
+}
+```
+
+#### Properties
+
+- `js` - JavaScript FPS metrics
+- `interrupted` - Whether the benchmark was cancelled
+- `suggestions` - Performance improvement suggestions
+- `formattedString` - Formatted string representation of results
+
+### JSFPSResult
+
+JavaScript FPS metrics.
+
+```typescript
+interface JSFPSResult {
+  minFPS: number;
+  maxFPS: number;
+  averageFPS: number;
+}
+```
+
+### FlatListBenchmarkParams
+
+Parameters for benchmarking React Native's FlatList.
+
+```typescript
+interface FlatListBenchmarkParams extends BenchmarkParams {
+  targetOffset: number;
+}
+```
+
+#### Properties
+
+- `targetOffset` - The offset to scroll to during the benchmark
+
+### Example
+
+```tsx
+import { useBenchmark, BenchmarkResult } from '@shopify/flash-list';
+
+function ProductList({ products }: { products: Product[] }) {
+  const listRef = useRef<FlashListRef<Product>>(null);
+
+  const handleBenchmarkComplete = (result: BenchmarkResult) => {
+    console.log(result.formattedString);
+    
+    if (result.js && result.js.averageFPS < 50) {
+      console.warn('Poor performance detected');
+    }
+
+    result.suggestions.forEach(suggestion => {
+      console.log('Suggestion:', suggestion);
+    });
+  };
+
+  useBenchmark(listRef, handleBenchmarkComplete, {
+    startDelayInMs: 5000,
+    speedMultiplier: 1.5,
+    repeatCount: 3,
+  });
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={products}
+      renderItem={renderProduct}
+      estimatedItemSize={150}
+    />
+  );
+}
+```
+
+## Context Interfaces
+
+Interfaces for FlashList context.
+
+### FlashListContext
+
+Context interface providing access to FlashList methods and refs.
+
+```typescript
+interface FlashListContext<T> {
+  layout: () => void;
+  getRef: () => FlashListRef<T> | null;
+  getParentRef: () => FlashListRef<unknown> | null;
+  getScrollViewRef: () => CompatScroller | null;
+  getParentScrollViewRef: () => CompatScroller | null;
+}
+```
+
+#### Methods
+
+- `layout()` - Trigger layout for the FlashList
+- `getRef()` - Get ref for the current FlashList
+- `getParentRef()` - Get ref for the parent FlashList if present
+- `getScrollViewRef()` - Get ScrollView ref for current FlashList
+- `getParentScrollViewRef()` - Get ScrollView ref for parent FlashList
+
+### RecyclerViewContext
+
+Extended context for nested FlashList scenarios.
+
+```typescript
+interface RecyclerViewContext<T> extends FlashListContext<T> {
+  markChildLayoutAsPending: (id: string) => void;
+  unmarkChildLayoutAsPending: (id: string) => void;
+}
+```
+
+### Example
+
+```tsx
+import { useFlashListContext } from '@shopify/flash-list';
+
+function CustomListHeader() {
+  const context = useFlashListContext();
+
+  const scrollToTop = () => {
+    const ref = context?.getRef();
+    ref?.scrollToTop({ animated: true });
+  };
+
+  return (
+    <Pressable onPress={scrollToTop}>
+      <Text>Scroll to Top</Text>
+    </Pressable>
+  );
+}
+```
+
+## LayoutCommitObserverProps
+
+Props for the LayoutCommitObserver component.
+
+```typescript
+interface LayoutCommitObserverProps {
+  children: React.ReactNode;
+  onCommitLayoutEffect?: () => void;
+}
+```
+
+### Properties
+
+#### children
+
+Child components to observe.
+
+```typescript
+children: React.ReactNode;
+```
+
+#### onCommitLayoutEffect
+
+Callback triggered when all child FlashLists have completed their first layout commit.
+
+```typescript
+onCommitLayoutEffect?: () => void;
+```
+
+### Example
+
+```tsx
+import { LayoutCommitObserver } from '@shopify/flash-list';
+
+function Screen() {
+  const [layoutComplete, setLayoutComplete] = useState(false);
+
+  return (
+    <LayoutCommitObserver
+      onCommitLayoutEffect={() => {
+        setLayoutComplete(true);
+        console.log('All lists have finished initial layout');
+      }}
+    >
+      <FlashList
+        data={data1}
+        renderItem={renderItem1}
+        estimatedItemSize={100}
+      />
+      <FlashList
+        data={data2}
+        renderItem={renderItem2}
+        estimatedItemSize={80}
+      />
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Layout Manager Interfaces
+
+Interfaces used internally by FlashList's layout system.
+
+### RVLayout
+
+Complete layout information for a list item.
+
+```typescript
+interface RVLayout extends RVDimension {
+  x: number;
+  y: number;
+  isWidthMeasured?: boolean;
+  isHeightMeasured?: boolean;
+  minHeight?: number;
+  minWidth?: number;
+  maxHeight?: number;
+  maxWidth?: number;
+  enforcedWidth?: boolean;
+  enforcedHeight?: boolean;
+}
+```
+
+### RVDimension
+
+Basic dimension interface.
+
+```typescript
+interface RVDimension {
+  width: number;
+  height: number;
+}
+```
+
+### Example
+
+```tsx
+import { FlashListRef, RVLayout } from '@shopify/flash-list';
+
+function useItemPosition(listRef: RefObject<FlashListRef<any>>, index: number) {
+  const [layout, setLayout] = useState<RVLayout | undefined>();
+
+  useEffect(() => {
+    const itemLayout = listRef.current?.getLayout(index);
+    setLayout(itemLayout);
+  }, [index]);
+
+  return layout;
+}
+```
+
+## OverrideProps
+
+Interface for overriding internal ScrollView props.
+
+```typescript
+interface OverrideProps {
+  initialDrawBatchSize?: number;
+  [key: string]: any;
+}
+```
+
+### Properties
+
+- `initialDrawBatchSize` - Initial number of items to draw
+- Additional string keys for other ScrollView props
+
+### Example
+
+```tsx
+const overrideProps: OverrideProps = {
+  style: { overflow: 'visible' },
+  contentContainerStyle: { paddingBottom: 100 },
+};
+
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  estimatedItemSize={100}
+  overrideProps={overrideProps}
+/>
+```

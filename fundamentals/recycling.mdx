@@ -1,0 +1,362 @@
+---
+title: Recycling
+description: Understanding how view recycling works in FlashList
+---
+
+## How Recycling Works
+
+One of the most important concepts to understand about FlashList is how it works under the hood. Unlike FlatList, which unmounts components when they scroll off screen, **FlashList recycles components** for better performance.
+
+When an item scrolls out of the viewport, instead of being destroyed, the component is **re-rendered with a different `item` prop**. This is the core mechanism that makes FlashList so much faster than FlatList - it reuses existing component instances rather than creating and destroying them constantly.
+
+## The Challenge with State
+
+This recycling behavior creates an important challenge: **local component state persists across different items**.
+
+For example, if you use `useState` in a recycled component, you may see state values that were set for that component when it was associated with a **different item** in the list. When a new item is rendered in that recycled component, the previous state is still there.
+
+### Example Problem
+
+```tsx
+// ❌ Problematic: State persists across recycling
+const MyItem = ({ item }) => {
+  const [liked, setLiked] = useState(false);
+
+  return (
+    <Pressable onPress={() => setLiked(true)}>
+      <Text>{item.title}</Text>
+      <Text>{liked ? "Liked!" : "Not liked"}</Text>
+    </Pressable>
+  );
+};
+```
+
+**The problem:** When this component gets recycled:
+1. User scrolls to item A and taps "like" → `liked = true`
+2. User scrolls away, component is recycled
+3. Component is reused for item B → `liked` is still `true`!
+4. Item B incorrectly shows as "Liked" even though the user never liked it
+
+## Solutions
+
+### Solution 1: useRecyclingState Hook (Recommended)
+
+FlashList provides the `useRecyclingState` hook that automatically resets state when dependencies change, without requiring an additional render cycle.
+
+```tsx
+import { useRecyclingState } from "@shopify/flash-list";
+
+const MyItem = ({ item }) => {
+  // State is reset when item.id changes
+  const [liked, setLiked] = useRecyclingState(
+    item.liked, // initial value
+    [item.id],  // dependencies - reset when these change
+    () => {
+      // Optional callback on reset
+      console.log("Item changed, state reset");
+    }
+  );
+
+  return (
+    <Pressable onPress={() => setLiked(true)}>
+      <Text>{item.title}</Text>
+      <Text>{liked ? "Liked!" : "Not liked"}</Text>
+    </Pressable>
+  );
+};
+```
+
+**How it works:**
+- When the component is recycled with a new item, `item.id` changes
+- The hook detects the dependency change and resets `liked` to the initial value (`item.liked`)
+- No extra render is needed - this happens efficiently during recycling
+- The optional callback allows you to reset other things (like scroll positions)
+
+### Solution 2: useEffect to Reset State
+
+Alternatively, you can manually reset state when the item changes using `useEffect`:
+
+```tsx
+import { useState, useEffect } from "react";
+
+const MyItem = ({ item }) => {
+  const [liked, setLiked] = useState(item.liked);
+
+  // Reset state when item changes
+  useEffect(() => {
+    setLiked(item.liked);
+  }, [item.id, item.liked]);
+
+  return (
+    <Pressable onPress={() => setLiked(true)}>
+      <Text>{item.title}</Text>
+      <Text>{liked ? "Liked!" : "Not liked"}</Text>
+    </Pressable>
+  );
+};
+```
+
+<Note>
+`useRecyclingState` is preferred over `useEffect` because it's more performant - it avoids the extra render cycle that `useEffect` would trigger.
+</Note>
+
+### Solution 3: Store State Outside Components
+
+For complex state management, consider storing state outside the component:
+
+```tsx
+import { useState } from "react";
+
+// Store liked state at the parent level
+const MyList = () => {
+  const [likedItems, setLikedItems] = useState(new Set());
+
+  const toggleLike = (itemId: string) => {
+    setLikedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <FlashList
+      data={items}
+      renderItem={({ item }) => (
+        <MyItem
+          item={item}
+          isLiked={likedItems.has(item.id)}
+          onToggleLike={() => toggleLike(item.id)}
+        />
+      )}
+      estimatedItemSize={100}
+    />
+  );
+};
+
+const MyItem = ({ item, isLiked, onToggleLike }) => {
+  return (
+    <Pressable onPress={onToggleLike}>
+      <Text>{item.title}</Text>
+      <Text>{isLiked ? "Liked!" : "Not liked"}</Text>
+    </Pressable>
+  );
+};
+```
+
+## Complex State Example
+
+```tsx
+import { useRecyclingState } from "@shopify/flash-list";
+
+const ExpandableItem = ({ item }) => {
+  const [isExpanded, setIsExpanded] = useRecyclingState(
+    false,
+    [item.id],
+    () => {
+      // Reset callback - useful for nested components
+      // For example, reset scroll position of a nested horizontal list
+    }
+  );
+
+  const [rating, setRating] = useRecyclingState(
+    item.initialRating,
+    [item.id]
+  );
+
+  return (
+    <View>
+      <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+        <Text>{item.title}</Text>
+      </Pressable>
+      
+      {isExpanded && (
+        <View>
+          <Text>{item.description}</Text>
+          <RatingComponent rating={rating} onRate={setRating} />
+        </View>
+      )}
+    </View>
+  );
+};
+```
+
+## Optimizing for Recycling
+
+When designing your item components for FlashList, follow these principles:
+
+### 1. Minimize Re-renders
+
+Try to ensure as few things as possible have to be re-rendered and recomputed when recycling occurs.
+
+```tsx
+import { memo } from "react";
+
+// Heavy component that doesn't depend on item
+const MyHeavyComponent = memo(() => {
+  return <ComplexVisualization />;
+});
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <MyHeavyComponent /> {/* Won't re-render on recycling */}
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+### 2. Use useCallback and useMemo
+
+Memoize callbacks and expensive computations:
+
+```tsx
+import { useMemo, useCallback } from "react";
+import { useRecyclingState } from "@shopify/flash-list";
+
+const MyItem = ({ item, onPress }) => {
+  const [selected, setSelected] = useRecyclingState(false, [item.id]);
+
+  // Memoize expensive computations
+  const processedData = useMemo(() => {
+    return expensiveProcessing(item.data);
+  }, [item.data]);
+
+  // Memoize callbacks
+  const handlePress = useCallback(() => {
+    setSelected(true);
+    onPress(item.id);
+  }, [item.id, onPress]);
+
+  return (
+    <Pressable onPress={handlePress}>
+      <Text>{processedData}</Text>
+    </Pressable>
+  );
+};
+```
+
+### 3. Avoid Heavy Computation in Render
+
+Move heavy computations outside the component or memoize them:
+
+```tsx
+// ❌ Bad: Heavy computation on every render/recycle
+const MyItem = ({ item }) => {
+  const result = expensiveCalculation(item.data); // Runs on every recycle!
+  return <Text>{result}</Text>;
+};
+
+// ✅ Good: Memoize heavy computation
+const MyItem = ({ item }) => {
+  const result = useMemo(
+    () => expensiveCalculation(item.data),
+    [item.data]
+  );
+  return <Text>{result}</Text>;
+};
+
+// ✅ Even better: Pre-compute at data level
+const data = rawData.map((item) => ({
+  ...item,
+  processedValue: expensiveCalculation(item.data),
+}));
+
+<FlashList
+  data={data}
+  renderItem={({ item }) => <Text>{item.processedValue}</Text>}
+  estimatedItemSize={50}
+/>;
+```
+
+## Common Pitfalls
+
+### Pitfall 1: Using Keys in Item Components
+
+```tsx
+// ❌ Never use keys inside renderItem
+const MyItem = ({ item }) => {
+  return (
+    <View key={item.id}> {/* This breaks recycling! */}
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+<Warning>
+Using `key` props inside your item components will highly degrade performance. It forces React to recreate components instead of recycling them, defeating the entire purpose of FlashList.
+</Warning>
+
+For mapping over arrays inside items, use [`useMappingHelper`](/api/hooks/use-mapping-helper).
+
+### Pitfall 2: Not Resetting Nested Component State
+
+```tsx
+// ❌ Nested component state not reset
+const NestedCounter = () => {
+  const [count, setCount] = useState(0);
+  return <Button title={`Count: ${count}`} onPress={() => setCount(count + 1)} />;
+};
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <Text>{item.title}</Text>
+      <NestedCounter /> {/* Count persists across items! */}
+    </View>
+  );
+};
+
+// ✅ Pass item identifier to force reset
+const NestedCounter = ({ itemId }) => {
+  const [count, setCount] = useRecyclingState(0, [itemId]);
+  return <Button title={`Count: ${count}`} onPress={() => setCount(count + 1)} />;
+};
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <Text>{item.title}</Text>
+      <NestedCounter itemId={item.id} />
+    </View>
+  );
+};
+```
+
+## Testing Recycling
+
+To test if your components handle recycling correctly:
+
+1. **Scroll through your list** and interact with items (tap buttons, expand items, etc.)
+2. **Scroll back up** and check if the state is correct
+3. **Look for state leakage** - items showing state from other items
+4. **Check in release mode** - recycling behavior may differ from dev mode
+
+```tsx
+// Add logging to track recycling
+const MyItem = ({ item }) => {
+  useEffect(() => {
+    console.log(`Item ${item.id} mounted/recycled`);
+    return () => console.log(`Item ${item.id} will recycle`);
+  }, [item.id]);
+
+  // ... rest of component
+};
+```
+
+## Summary
+
+- FlashList **recycles components** instead of unmounting them for better performance
+- Local state **persists** when components are recycled
+- Use **`useRecyclingState`** to automatically reset state when items change
+- **Minimize re-renders** by memoizing components and callbacks
+- **Never use `key` props** inside item components - it breaks recycling
+- Test your components by scrolling up and down to verify state resets correctly
+
+By understanding and properly handling recycling, you'll build FlashList components that are both performant and bug-free.

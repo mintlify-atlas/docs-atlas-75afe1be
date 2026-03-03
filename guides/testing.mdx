@@ -1,0 +1,595 @@
+---
+title: Testing with Jest
+description: Set up and test FlashList components in your test suite
+icon: flask
+---
+
+Testing FlashList components requires special setup because FlashList needs layout measurements to work properly. In test environments like Jest, these measurements aren't available by default, which would cause FlashList to mount all items at once.
+
+## Quick Setup
+
+FlashList provides a Jest setup file that mocks the necessary measurements:
+
+<Steps>
+  <Step title="Create jest-setup.js">
+    Create a `jest-setup.js` file in your project root (if you don't have one already):
+
+    ```js jest-setup.js
+    require("@shopify/flash-list/jestSetup");
+    ```
+  </Step>
+
+  <Step title="Configure Jest">
+    Update your `jest.config.js` to reference the setup file:
+
+    ```js jest.config.js
+    module.exports = {
+      preset: 'react-native',
+      setupFiles: ['./jest-setup.js'],
+      // ... other config
+    };
+    ```
+  </Step>
+
+  <Step title="Run your tests">
+    You're all set! FlashList components will now work in your tests:
+
+    ```bash
+    npm test
+    # or
+    yarn test
+    ```
+  </Step>
+</Steps>
+
+## What the Setup Does
+
+The FlashList Jest setup mocks layout measurement functions to return fixed dimensions:
+
+```js
+// From @shopify/flash-list/jestSetup.js
+jest.mock("@shopify/flash-list/dist/recyclerview/utils/measureLayout", () => {
+  const originalModule = jest.requireActual(
+    "@shopify/flash-list/dist/recyclerview/utils/measureLayout"
+  );
+  return {
+    ...originalModule,
+    measureParentSize: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 900,
+    })),
+    measureFirstChildLayout: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 900,
+    })),
+    measureItemLayout: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    })),
+  };
+});
+```
+
+This ensures FlashList has the measurements it needs to render a reasonable number of items instead of mounting everything.
+
+## Basic Test Example
+
+Here's a simple test using `@testing-library/react-native`:
+
+```tsx
+import React from "react";
+import { Text, View } from "react-native";
+import { render } from "@testing-library/react-native";
+import { FlashList } from "@shopify/flash-list";
+
+const MyFlashListComponent = () => {
+  const data = [
+    { id: "1", title: "First Item" },
+    { id: "2", title: "Second Item" },
+    { id: "3", title: "Third Item" },
+  ];
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={({ item }) => (
+        <View>
+          <Text>{item.title}</Text>
+        </View>
+      )}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={50}
+    />
+  );
+};
+
+describe("MyFlashListComponent", () => {
+  it("renders items", () => {
+    const { getByText } = render(<MyFlashListComponent />);
+    
+    const firstItem = getByText("First Item");
+    expect(firstItem).toBeTruthy();
+  });
+});
+```
+
+## Testing Common Scenarios
+
+### Testing Item Rendering
+
+```tsx
+import { render } from "@testing-library/react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+const ProductList = ({ products }: { products: Product[] }) => (
+  <FlashList
+    data={products}
+    renderItem={({ item }) => (
+      <View testID={`product-${item.id}`}>
+        <Text>{item.name}</Text>
+        <Text>${item.price}</Text>
+      </View>
+    )}
+    keyExtractor={(item) => item.id}
+    estimatedItemSize={80}
+  />
+);
+
+describe("ProductList", () => {
+  const mockProducts: Product[] = [
+    { id: "1", name: "Laptop", price: 999 },
+    { id: "2", name: "Mouse", price: 29 },
+  ];
+
+  it("renders all products", () => {
+    const { getByText } = render(<ProductList products={mockProducts} />);
+    
+    expect(getByText("Laptop")).toBeTruthy();
+    expect(getByText("$999")).toBeTruthy();
+    expect(getByText("Mouse")).toBeTruthy();
+    expect(getByText("$29")).toBeTruthy();
+  });
+
+  it("renders product with testID", () => {
+    const { getByTestId } = render(<ProductList products={mockProducts} />);
+    
+    expect(getByTestId("product-1")).toBeTruthy();
+  });
+});
+```
+
+### Testing Empty States
+
+```tsx
+const ProductList = ({ products }: { products: Product[] }) => (
+  <FlashList
+    data={products}
+    renderItem={({ item }) => <ProductItem item={item} />}
+    ListEmptyComponent={
+      <View testID="empty-state">
+        <Text>No products found</Text>
+      </View>
+    }
+    keyExtractor={(item) => item.id}
+    estimatedItemSize={80}
+  />
+);
+
+describe("ProductList", () => {
+  it("shows empty state when no products", () => {
+    const { getByTestId, getByText } = render(
+      <ProductList products={[]} />
+    );
+    
+    expect(getByTestId("empty-state")).toBeTruthy();
+    expect(getByText("No products found")).toBeTruthy();
+  });
+});
+```
+
+### Testing User Interactions
+
+```tsx
+import { fireEvent } from "@testing-library/react-native";
+
+const TodoList = () => {
+  const [todos, setTodos] = useState([
+    { id: "1", text: "Buy groceries", completed: false },
+    { id: "2", text: "Walk dog", completed: false },
+  ]);
+
+  const toggleTodo = (id: string) => {
+    setTodos((current) =>
+      current.map((todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      )
+    );
+  };
+
+  return (
+    <FlashList
+      data={todos}
+      renderItem={({ item }) => (
+        <Pressable
+          testID={`todo-${item.id}`}
+          onPress={() => toggleTodo(item.id)}
+        >
+          <Text>{item.completed ? "✓" : "○"} {item.text}</Text>
+        </Pressable>
+      )}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={50}
+    />
+  );
+};
+
+describe("TodoList", () => {
+  it("toggles todo completion on press", () => {
+    const { getByTestId, getByText } = render(<TodoList />);
+    
+    const todo = getByTestId("todo-1");
+    expect(getByText("○ Buy groceries")).toBeTruthy();
+    
+    fireEvent.press(todo);
+    
+    expect(getByText("✓ Buy groceries")).toBeTruthy();
+  });
+});
+```
+
+### Testing with Custom Mock Dimensions
+
+If you need different mock dimensions for specific tests:
+
+```tsx
+import { jest } from "@jest/globals";
+
+const mockMeasureLayout = (width: number, height: number) => {
+  jest.mock("@shopify/flash-list/dist/recyclerview/utils/measureLayout", () => ({
+    measureParentSize: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width,
+      height,
+    })),
+    measureFirstChildLayout: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width,
+      height,
+    })),
+    measureItemLayout: jest.fn().mockImplementation(() => ({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    })),
+  }));
+};
+
+describe("Responsive List", () => {
+  it("renders correctly on tablet", () => {
+    mockMeasureLayout(768, 1024);
+    const { getByText } = render(<MyList />);
+    // ... assertions
+  });
+});
+```
+
+## Testing Different Layouts
+
+### Grid Layout
+
+```tsx
+const GridList = () => (
+  <FlashList
+    data={mockData}
+    numColumns={2}
+    renderItem={({ item }) => <GridItem item={item} />}
+    keyExtractor={(item) => item.id}
+    estimatedItemSize={150}
+  />
+);
+
+describe("GridList", () => {
+  it("renders items in grid", () => {
+    const { getAllByTestId } = render(<GridList />);
+    const items = getAllByTestId(/grid-item-/);
+    expect(items.length).toBeGreaterThan(0);
+  });
+});
+```
+
+### Masonry Layout
+
+```tsx
+const MasonryList = () => (
+  <FlashList
+    data={mockData}
+    masonry
+    numColumns={3}
+    renderItem={({ item }) => <MasonryCard item={item} />}
+    keyExtractor={(item) => item.id}
+    estimatedItemSize={200}
+  />
+);
+
+describe("MasonryList", () => {
+  it("renders masonry layout", () => {
+    const { getByTestId } = render(<MasonryList />);
+    expect(getByTestId("masonry-container")).toBeTruthy();
+  });
+});
+```
+
+## Testing with TypeScript
+
+Fully typed test example:
+
+```tsx
+import { render, RenderAPI } from "@testing-library/react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+const UserList = ({ users }: { users: User[] }) => (
+  <FlashList<User>
+    data={users}
+    renderItem={({ item }) => (
+      <View testID={`user-${item.id}`}>
+        <Text>{item.name}</Text>
+        <Text>{item.email}</Text>
+      </View>
+    )}
+    keyExtractor={(item) => item.id}
+    estimatedItemSize={70}
+  />
+);
+
+describe("UserList", () => {
+  const mockUsers: User[] = [
+    { id: "1", name: "John Doe", email: "john@example.com" },
+    { id: "2", name: "Jane Smith", email: "jane@example.com" },
+  ];
+
+  let component: RenderAPI;
+
+  beforeEach(() => {
+    component = render(<UserList users={mockUsers} />);
+  });
+
+  it("renders user names", () => {
+    expect(component.getByText("John Doe")).toBeTruthy();
+    expect(component.getByText("Jane Smith")).toBeTruthy();
+  });
+
+  it("renders user emails", () => {
+    expect(component.getByText("john@example.com")).toBeTruthy();
+    expect(component.getByText("jane@example.com")).toBeTruthy();
+  });
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use testID liberally" icon="tag">
+    Add `testID` props to make elements easy to query in tests:
+
+    ```tsx
+    <View testID={`item-${item.id}`}>
+    ```
+  </Card>
+
+  <Card title="Test behavior, not implementation" icon="flask">
+    Focus on what the user sees and does, not internal component details:
+
+    ```tsx
+    // Good
+    expect(getByText("Product added")).toBeTruthy();
+    
+    // Avoid
+    expect(component.state.cartItems.length).toBe(1);
+    ```
+  </Card>
+
+  <Card title="Mock external dependencies" icon="plug">
+    Mock API calls, navigation, and other external dependencies:
+
+    ```tsx
+    jest.mock('../api/products', () => ({
+      fetchProducts: jest.fn(),
+    }));
+    ```
+  </Card>
+
+  <Card title="Clean up after tests" icon="broom">
+    Use `beforeEach` and `afterEach` to reset state:
+
+    ```tsx
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+    ```
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Tests timing out or hanging">
+    This usually means the Jest setup file isn't loaded. Verify:
+    
+    1. `jest-setup.js` contains `require("@shopify/flash-list/jestSetup")`
+    2. `jest.config.js` has `setupFiles: ['./jest-setup.js']`
+    3. The path to jest-setup.js is correct
+  </Accordion>
+
+  <Accordion title="Items not rendering in tests">
+    The mock dimensions might be too small. Try increasing them in a custom mock:
+
+    ```tsx
+    mockMeasureLayout(400, 1200); // Larger viewport
+    ```
+  </Accordion>
+
+  <Accordion title="Can't find elements with getByText">
+    Make sure items are actually rendered. Check the mock viewport size or add `testID` for more reliable queries.
+  </Accordion>
+
+  <Accordion title="TypeScript errors with FlashList types">
+    Import types explicitly:
+
+    ```tsx
+    import type { FlashListProps } from "@shopify/flash-list";
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing Libraries
+
+Recommended testing libraries for FlashList:
+
+<Tabs>
+  <Tab title="React Native Testing Library">
+    ```bash
+    npm install --save-dev @testing-library/react-native
+    ```
+
+    The de facto standard for testing React Native components. Great API and excellent documentation.
+  </Tab>
+  <Tab title="Jest">
+    ```bash
+    npm install --save-dev jest
+    ```
+
+    The test runner. Usually comes pre-configured with React Native projects.
+  </Tab>
+  <Tab title="React Test Renderer">
+    ```bash
+    npm install --save-dev react-test-renderer
+    ```
+
+    Used by Testing Library under the hood. Usually installed automatically.
+  </Tab>
+</Tabs>
+
+## Complete Test Suite Example
+
+```tsx
+import React from "react";
+import { View, Text, Pressable } from "react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+const TaskList = () => {
+  const [tasks, setTasks] = React.useState<Task[]>([
+    { id: "1", title: "Task 1", completed: false },
+    { id: "2", title: "Task 2", completed: false },
+  ]);
+
+  const toggleTask = (id: string) => {
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
+  };
+
+  return (
+    <FlashList
+      testID="task-list"
+      data={tasks}
+      renderItem={({ item }) => (
+        <Pressable
+          testID={`task-${item.id}`}
+          onPress={() => toggleTask(item.id)}
+        >
+          <View>
+            <Text testID={`task-title-${item.id}`}>
+              {item.completed ? "✓" : "○"} {item.title}
+            </Text>
+          </View>
+        </Pressable>
+      )}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={60}
+    />
+  );
+};
+
+describe("TaskList", () => {
+  it("renders the list", () => {
+    const { getByTestId } = render(<TaskList />);
+    expect(getByTestId("task-list")).toBeTruthy();
+  });
+
+  it("renders all tasks", () => {
+    const { getByTestId } = render(<TaskList />);
+    expect(getByTestId("task-1")).toBeTruthy();
+    expect(getByTestId("task-2")).toBeTruthy();
+  });
+
+  it("displays task titles", () => {
+    const { getByText } = render(<TaskList />);
+    expect(getByText("○ Task 1")).toBeTruthy();
+    expect(getByText("○ Task 2")).toBeTruthy();
+  });
+
+  it("toggles task completion", async () => {
+    const { getByTestId, getByText } = render(<TaskList />);
+    
+    const task = getByTestId("task-1");
+    fireEvent.press(task);
+    
+    await waitFor(() => {
+      expect(getByText("✓ Task 1")).toBeTruthy();
+    });
+  });
+
+  it("toggles task back to incomplete", async () => {
+    const { getByTestId, getByText } = render(<TaskList />);
+    
+    const task = getByTestId("task-1");
+    fireEvent.press(task);
+    fireEvent.press(task);
+    
+    await waitFor(() => {
+      expect(getByText("○ Task 1")).toBeTruthy();
+    });
+  });
+});
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Testing Library Docs" icon="book" href="https://callstack.github.io/react-native-testing-library/">
+    Official React Native Testing Library documentation
+  </Card>
+  <Card title="Jest Documentation" icon="book" href="https://jestjs.io/">
+    Learn more about Jest testing framework
+  </Card>
+</CardGroup>

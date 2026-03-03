@@ -1,0 +1,398 @@
+---
+title: Migrating from v1 to v2
+description: Step-by-step guide to migrate your FlashList v1 implementation to v2
+---
+
+This guide will help you migrate your existing FlashList v1 implementation to v2. FlashList v2 brings significant improvements in performance, developer experience, and new features while removing some deprecated props.
+
+## Overview of Major Changes
+
+<Warning>
+**New architecture is required** - v2 only works on top of React Native's new architecture.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="No More Estimates" icon="ruler">
+    FlashList v2 automatically handles all sizing - no estimates required
+  </Card>
+  <Card title="Masonry as Prop" icon="grid">
+    MasonryFlashList component is deprecated - use the `masonry` prop instead
+  </Card>
+  <Card title="Better Scroll Position" icon="arrows-up-down">
+    maintainVisibleContentPosition enabled by default for better handling
+  </Card>
+  <Card title="Modern API" icon="code">
+    Inverted prop deprecated - use maintainVisibleContentPosition instead
+  </Card>
+</CardGroup>
+
+## Migration Steps
+
+### Step 1: Update Package Version
+
+<CodeGroup>
+```bash npm
+npm install @shopify/flash-list@^2.0.0
+```
+
+```bash yarn
+yarn add @shopify/flash-list@^2.0.0
+```
+
+```bash pnpm
+pnpm add @shopify/flash-list@^2.0.0
+```
+</CodeGroup>
+
+### Step 2: Remove Deprecated Props
+
+<Accordion title="Size Estimation Props (No Longer Needed)">
+The biggest change in v2 is that you no longer need to provide size estimates. FlashList v2 automatically handles all sizing.
+
+```diff Before
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  estimatedItemSize={50}
+  estimatedListSize={{ height: 400, width: 300 }}
+  estimatedFirstItemOffset={0}
+/>
+```
+
+```jsx After
+<FlashList
+  data={data}
+  renderItem={renderItem}
+/>
+```
+
+<Warning>
+Simply remove these props - they are no longer used or recognized:
+- `estimatedItemSize`
+- `estimatedListSize`
+- `estimatedFirstItemOffset`
+</Warning>
+</Accordion>
+
+<Accordion title="Other Deprecated Props">
+Remove these deprecated props from your FlashList components:
+
+```diff
+<FlashList
+  data={data}
+  renderItem={renderItem}
+- inverted={true}
+- onBlankArea={handleBlankArea}
+- disableHorizontalListHeightMeasurement={true}
+- disableAutoLayout={true}
+/>
+```
+
+**Deprecated props:**
+- `inverted` - Use `maintainVisibleContentPosition` instead (see Step 4)
+- `onBlankArea` - No longer supported
+- `disableHorizontalListHeightMeasurement` - No longer needed
+- `disableAutoLayout` - There's no auto layout in v2
+</Accordion>
+
+### Step 3: Update Changed Props
+
+<Accordion title="overrideItemLayout - Size Estimates Removed">
+In v1, `overrideItemLayout` allowed both span changes and size estimates. In v2, it only supports span changes.
+
+```jsx v1 - Both span and size
+overrideItemLayout={(layout, item, index) => {
+  layout.span = item.span;
+  layout.size = 100; // No longer supported in v2
+}}
+```
+
+```jsx v2 - Only span supported
+overrideItemLayout={(layout, item) => {
+  layout.span = item.span; // Only span is supported
+}}
+```
+
+<Warning>
+Remove any `layout.size` assignments from your `overrideItemLayout` implementation. Only `layout.span` is supported in v2.
+</Warning>
+</Accordion>
+
+### Step 4: Replace Inverted Lists
+
+<Accordion title="Migrating from inverted prop">
+If you were using the `inverted` prop (common in chat apps), replace it with `maintainVisibleContentPosition` and consider reversing your data array.
+
+```jsx v1 - Inverted list for chat
+<FlashList
+  data={messages}
+  renderItem={renderMessage}
+  inverted={true}
+  onEndReached={loadMoreMessages}
+/>
+```
+
+```jsx v2 - Use maintainVisibleContentPosition
+<FlashList
+  data={messages} // Can reverse if needed
+  renderItem={renderMessage}
+  maintainVisibleContentPosition={{
+    autoscrollToBottomThreshold: 0.2,
+    startRenderingFromBottom: true,
+  }}
+  onStartReached={loadMoreMessages} // Note: onStartReached instead of onEndReached
+/>
+```
+
+<Note>
+The `maintainVisibleContentPosition` feature is **enabled by default** in v2, but you can configure it for chat-like behavior with `startRenderingFromBottom` and `autoscrollToBottomThreshold`.
+</Note>
+
+**Key changes:**
+- Replace `inverted={true}` with `maintainVisibleContentPosition` configuration
+- Use `onStartReached` instead of `onEndReached` if loading older content from the top
+- Consider using `startRenderingFromBottom: true` for chat interfaces
+</Accordion>
+
+### Step 5: Migrate MasonryFlashList
+
+<Accordion title="From MasonryFlashList to FlashList with masonry prop">
+The `MasonryFlashList` component is deprecated. Use the `masonry` prop on `FlashList` instead.
+
+```jsx v1 - MasonryFlashList component
+import { MasonryFlashList } from "@shopify/flash-list";
+
+<MasonryFlashList
+  data={data}
+  renderItem={renderItem}
+  numColumns={3}
+  estimatedItemSize={100}
+/>
+```
+
+```jsx v2 - FlashList with masonry prop
+import { FlashList } from "@shopify/flash-list";
+
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  numColumns={3}
+  masonry
+/>
+```
+
+<Warning>
+**Breaking Change:** `getColumnFlex` from MasonryFlashList is not supported in v2.
+</Warning>
+
+**New feature:** You can now use `optimizeItemArrangement` prop to reduce differences in column height by modifying item order:
+
+```jsx
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  numColumns={3}
+  masonry
+  optimizeItemArrangement
+/>
+```
+</Accordion>
+
+### Step 6: Update Ref Types
+
+<Accordion title="FlashListRef type change">
+The ref type for FlashList has changed from `FlashList` to `FlashListRef`.
+
+```tsx v1
+import { FlashList } from "@shopify/flash-list";
+
+const listRef = useRef<FlashList<ItemType>>(null);
+
+<FlashList
+  ref={listRef}
+  data={data}
+  renderItem={renderItem}
+/>
+```
+
+```tsx v2
+import { FlashList, FlashListRef } from "@shopify/flash-list";
+
+const listRef = useRef<FlashListRef<ItemType>>(null);
+
+<FlashList
+  ref={listRef}
+  data={data}
+  renderItem={renderItem}
+/>
+```
+
+The `FlashListRef` type provides access to all list methods:
+- `scrollToIndex()`
+- `scrollToItem()`
+- `scrollToOffset()`
+- `getVisibleIndices()`
+- `getLayout()`
+- And more...
+</Accordion>
+
+### Step 7: Replace CellContainer with View
+
+<Accordion title="CellContainer no longer exported">
+`CellContainer` is no longer exported in v2. Replace it with React Native's `View`.
+
+```jsx v1
+import { CellContainer } from "@shopify/flash-list";
+
+const CustomCellRenderer = (props) => {
+  return <CellContainer {...props} />;
+};
+```
+
+```jsx v2
+import { View } from "react-native";
+
+const CustomCellRenderer = (props) => {
+  return <View {...props} />;
+};
+```
+
+<Note>
+Apps forwarding custom `CellRendererComponent` might need this change.
+</Note>
+</Accordion>
+
+## Additional Considerations
+
+### Memoization is More Important
+
+<Warning>
+Memoizing props passed to FlashList is more important in v2.
+</Warning>
+
+v1 was more selective about updating items, but this was often perceived as a bug by developers. v2 allows developers to ensure that props are memoized and will stop re-renders of children wherever it is obvious.
+
+```jsx
+const memoizedData = useMemo(() => data, [data]);
+const memoizedRenderItem = useCallback(
+  ({ item }) => <Item item={item} />,
+  []
+);
+
+<FlashList
+  data={memoizedData}
+  renderItem={memoizedRenderItem}
+/>
+```
+
+### keyExtractor is Highly Recommended
+
+<Note>
+`keyExtractor` is important to prevent glitches due to item layout changes when going upwards. We highly recommend having a valid `keyExtractor` with v2.
+</Note>
+
+```jsx
+<FlashList
+  data={data}
+  keyExtractor={(item) => item.id}
+  renderItem={renderItem}
+/>
+```
+
+### Remove Explicit key Props in renderItem
+
+<Warning>
+Scan your `renderItem` hierarchy for explicit `key` prop definitions and remove them.
+</Warning>
+
+If you're doing a `.map()` inside your items, use the `useMappingHelper` hook:
+
+```jsx
+import { useMappingHelper } from "@shopify/flash-list";
+
+const MyItem = ({ items }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View>
+      {items.map((item, index) => (
+        <Text key={getMappingKey(item.id, index)}>{item.title}</Text>
+      ))}
+    </View>
+  );
+};
+```
+
+### Check useState in renderItem
+
+<Note>
+Check your `renderItem` hierarchy for components that make use of `useState` and verify whether that state would need to be reset if a different item is passed to that component.
+</Note>
+
+Consider using the new hooks:
+- `useLayoutState` - For state changes that affect layout
+- `useRecyclingState` - For state that should reset when item changes
+
+See [What's New in v2](/migration/v2-changes) for detailed examples.
+
+### Performance Testing
+
+<Warning>
+Do not test performance with JS dev mode on. Make sure you're in release mode.
+</Warning>
+
+FlashList can appear slower while in dev mode due to a small render buffer.
+
+```bash
+# iOS
+npx react-native run-ios --configuration Release
+
+# Android
+npx react-native run-android --variant=release
+```
+
+### Nesting Lists
+
+<Note>
+If you're nesting horizontal FlashLists in vertical lists, we highly recommend the vertical list to be FlashList too. We have optimizations to wait for child layout to complete which can improve load times.
+</Note>
+
+```jsx
+<FlashList
+  data={sections}
+  renderItem={({ item }) => (
+    <FlashList
+      data={item.items}
+      horizontal
+      renderItem={({ item }) => <HorizontalItem item={item} />}
+    />
+  )}
+/>
+```
+
+## Migration Checklist
+
+- [ ] Update to `@shopify/flash-list@^2.0.0`
+- [ ] Remove size estimation props (`estimatedItemSize`, `estimatedListSize`, `estimatedFirstItemOffset`)
+- [ ] Remove deprecated props (`inverted`, `onBlankArea`, `disableHorizontalListHeightMeasurement`, `disableAutoLayout`)
+- [ ] Update `overrideItemLayout` to only use `span` (remove `size`)
+- [ ] Replace `inverted` with `maintainVisibleContentPosition`
+- [ ] Replace `MasonryFlashList` with `FlashList` + `masonry` prop
+- [ ] Update ref types from `FlashList` to `FlashListRef`
+- [ ] Replace `CellContainer` with `View` (if using custom cell renderer)
+- [ ] Remove explicit `key` props in `renderItem` hierarchy
+- [ ] Add `keyExtractor` if not already present
+- [ ] Memoize props passed to FlashList
+- [ ] Review `useState` usage in items - consider new hooks
+- [ ] Test performance in release mode
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="What's New in v2" icon="sparkles" href="/migration/v2-changes">
+    Explore all the new features and improvements
+  </Card>
+  <Card title="Usage Guide" icon="book" href="/fundamentals/usage">
+    Learn about FlashList props and methods
+  </Card>
+</CardGroup>

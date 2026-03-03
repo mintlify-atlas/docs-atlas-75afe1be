@@ -1,0 +1,248 @@
+---
+title: Type Aliases
+description: Type aliases exported by FlashList for type-safe list implementations
+---
+
+FlashList exports several type aliases to help you build type-safe list components. These types define common patterns and structures used throughout the API.
+
+## ListRenderItem
+
+A function type that defines how to render individual items in your list.
+
+```typescript
+type ListRenderItem<TItem> = (
+  info: ListRenderItemInfo<TItem>
+) => React.ReactElement | null;
+```
+
+### Type Parameters
+
+- `TItem` - The type of items in your data array
+
+### Parameters
+
+- `info` - An object containing information about the item to render (see [ListRenderItemInfo](/api/typescript/interfaces#listrenderiteminfo))
+
+### Returns
+
+A React element to display for this item, or `null` to render nothing.
+
+### Example
+
+```tsx
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+const renderProduct: ListRenderItem<Product> = ({ item, index, target }) => {
+  // Don't track views during measurement
+  if (target === 'Measurement') {
+    return <ProductCard product={item} />;
+  }
+
+  return (
+    <ProductCard 
+      product={item}
+      position={index}
+      isSticky={target === 'StickyHeader'}
+    />
+  );
+};
+
+function ProductList({ products }: { products: Product[] }) {
+  return (
+    <FlashList
+      data={products}
+      renderItem={renderProduct}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+## RenderTarget
+
+Indicates why FlashList is rendering an item. Use this to optimize rendering and avoid tracking analytics during measurement.
+
+```typescript
+type RenderTarget = "Cell" | "StickyHeader" | "Measurement";
+```
+
+### Values
+
+- `"Cell"` - The item is being rendered as a regular list cell
+- `"StickyHeader"` - The item is being rendered as a sticky header
+- `"Measurement"` - The item is being rendered for size measurement (not visible to user)
+
+### Example
+
+```tsx
+import { ListRenderItem, RenderTarget } from '@shopify/flash-list';
+
+const renderItem: ListRenderItem<Item> = ({ item, target }) => {
+  // Skip expensive operations during measurement
+  if (target === 'Measurement') {
+    return <SimpleItemView item={item} />;
+  }
+
+  // Track analytics only for visible cells
+  if (target === 'Cell') {
+    trackItemView(item.id);
+  }
+
+  // Change appearance when used as sticky header
+  const isSticky = target === 'StickyHeader';
+  
+  return (
+    <ItemView 
+      item={item} 
+      highlighted={isSticky}
+    />
+  );
+};
+```
+
+### RenderTargetOptions
+
+A constant object providing the same values as `RenderTarget` for convenient access:
+
+```typescript
+const RenderTargetOptions: Record<string, RenderTarget> = {
+  Cell: "Cell",
+  StickyHeader: "StickyHeader",
+  Measurement: "Measurement",
+};
+```
+
+## ViewabilityConfigCallbackPairs
+
+An array of viewability configuration and callback pairs for tracking multiple viewability conditions.
+
+```typescript
+type ViewabilityConfigCallbackPairs<TItem> = 
+  ViewabilityConfigCallbackPair<TItem>[];
+```
+
+### Type Parameters
+
+- `TItem` - The type of items in your data array
+
+### Example
+
+```tsx
+import { FlashList, ViewabilityConfigCallbackPairs } from '@shopify/flash-list';
+
+interface Post {
+  id: string;
+  content: string;
+}
+
+function FeedList({ posts }: { posts: Post[] }) {
+  const viewabilityConfigCallbackPairs: ViewabilityConfigCallbackPairs<Post> = [
+    {
+      // Track items that are 50% visible
+      viewabilityConfig: {
+        itemVisiblePercentThreshold: 50,
+      },
+      onViewableItemsChanged: ({ viewableItems, changed }) => {
+        const visibleIds = viewableItems.map(token => token.item.id);
+        trackVisiblePosts(visibleIds);
+      },
+    },
+    {
+      // Track items that are fully visible for at least 1 second
+      viewabilityConfig: {
+        itemVisiblePercentThreshold: 100,
+        minimumViewTime: 1000,
+      },
+      onViewableItemsChanged: ({ viewableItems }) => {
+        viewableItems.forEach(token => {
+          if (token.isViewable) {
+            trackPostImpression(token.item.id);
+          }
+        });
+      },
+    },
+  ];
+
+  return (
+    <FlashList
+      data={posts}
+      renderItem={renderPost}
+      estimatedItemSize={200}
+      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
+    />
+  );
+}
+```
+
+## Cancellable
+
+A class used to cancel ongoing operations like benchmark scrolls.
+
+```typescript
+class Cancellable {
+  cancel(): void;
+  isCancelled(): boolean;
+}
+```
+
+### Methods
+
+#### cancel
+
+Cancels the operation.
+
+```typescript
+cancel(): void
+```
+
+#### isCancelled
+
+Checks if the operation has been cancelled.
+
+```typescript
+isCancelled(): boolean
+```
+
+### Example
+
+```tsx
+import { autoScroll, Cancellable } from '@shopify/flash-list';
+
+function BenchmarkComponent() {
+  const cancellableRef = useRef<Cancellable>(new Cancellable());
+
+  const startScroll = async () => {
+    const cancellable = new Cancellable();
+    cancellableRef.current = cancellable;
+
+    await autoScroll(
+      scrollFunction,
+      0, 0,
+      0, 1000,
+      1,
+      cancellable
+    );
+
+    if (!cancellable.isCancelled()) {
+      console.log('Scroll completed');
+    }
+  };
+
+  const stopScroll = () => {
+    cancellableRef.current.cancel();
+  };
+
+  return (
+    <View>
+      <Button onPress={startScroll} title="Start" />
+      <Button onPress={stopScroll} title="Stop" />
+    </View>
+  );
+}
+```

@@ -1,0 +1,158 @@
+---
+title: Known Issues
+description: Known issues and limitations in FlashList
+---
+
+FlashList and FlatList have very different internals. While the API is almost the same, the behavior might be different in some cases due to a bug, limitation or missing implementation.
+
+<Info>
+If you encounter an issue listed here, please don't create a new GitHub issue. These are known limitations we're tracking.
+</Info>
+
+## Horizontal Lists with RTL Layout
+
+We have a limitation where we're not able to read the padding applied on the list using `contentContainerStyle`. Small values shouldn't cause an issue; however, if you require precise `scrollTo` or `initialScrollIndex`, then apply padding or margin to the header instead.
+
+<Warning>
+This limitation applies only to RTL (right-to-left) language layouts with horizontal lists.
+</Warning>
+
+### Workaround
+
+Instead of applying padding via `contentContainerStyle`:
+
+```tsx
+// Avoid this for RTL horizontal lists
+<FlashList
+  horizontal
+  contentContainerStyle={{ paddingHorizontal: 20 }}
+  // ...
+/>
+```
+
+Apply padding to the header component:
+
+```tsx
+// Use this instead
+<FlashList
+  horizontal
+  ListHeaderComponent={() => <View style={{ width: 20 }} />}
+  // ...
+/>
+```
+
+## Horizontal Lists with Headers
+
+If the horizontal list has a fixed size or header, we assume that the height of the list is fixed. If your use case requires the list to match the size of the items or resize based on the tallest child, just skip using the header.
+
+### Workaround
+
+Render the header as the first item in the list and give it a separate type using `getItemType`:
+
+```tsx
+const data = [{ type: 'header' }, ...actualData];
+
+<FlashList
+  data={data}
+  getItemType={(item) => item.type}
+  renderItem={({ item }) => {
+    if (item.type === 'header') {
+      return <MyHeaderComponent />;
+    }
+    return <MyItemComponent item={item} />;
+  }}
+/>
+```
+
+## Data Re-ordering Can Cause Items to Move
+
+This is because `maintainVisibleContentPosition` is enabled by default. Having it enabled by default allows us to handle any layout changes while scrolling upwards in a better way, like after an orientation change or a large scroll jump to the last item.
+
+### Workaround
+
+If you're experiencing issues with data re-ordering, disable this feature:
+
+```tsx
+<FlashList
+  maintainVisibleContentPosition={{ disabled: true }}
+  // ...
+/>
+```
+
+## Architecture Requirements
+
+<Warning>
+FlashList v2 is only supported on React Native's new architecture.
+</Warning>
+
+FlashList v2.x has been designed to be new architecture only and will not run on the old architecture. If you're running on the old architecture or using FlashList v1.x, you can access the documentation specific to v1 at the [FlashList v1 Documentation](https://shopify.github.io/flash-list/docs/1.x/).
+
+## Props Not Supported
+
+### Cannot Toggle `horizontal` Prop
+
+The `horizontal` prop cannot be toggled dynamically. You can use a `key` on FlashList to recreate it if you need to switch between horizontal and vertical orientations.
+
+```tsx
+// Use key to force recreation when orientation changes
+<FlashList
+  key={isHorizontal ? 'horizontal' : 'vertical'}
+  horizontal={isHorizontal}
+  // ...
+/>
+```
+
+### Incompatible Prop Combinations
+
+The following prop combinations are not supported:
+
+- `masonry` and `horizontal` props are incompatible
+- `numColumns` and `horizontal` props are incompatible
+- Sticky headers are not supported when list is horizontal
+
+### Unsupported FlatList Props
+
+The following props from `FlatList` are currently not implemented:
+
+- `columnWrapperStyle`
+- `debug`
+- `listKey`
+
+The following `FlatList` props would bring no value if ported to `FlashList` due to differences in their underlying implementation:
+
+- `disableVirtualization`
+- `getItemLayout`
+- `initialNumToRender`
+- `maxToRenderPerBatch`
+- `setNativeProps`
+- `updateCellsBatchingPeriod`
+- `onScrollToIndexFailed`
+- `windowSize`
+
+<Info>
+We don't currently plan to implement these props.
+</Info>
+
+## Viewability Config Limitations
+
+You can set exactly one of `itemVisiblePercentThreshold` or `viewAreaCoveragePercentThreshold`. Specifying both is not supported.
+
+```tsx
+// Choose one:
+<FlashList
+  viewabilityConfig={{
+    itemVisiblePercentThreshold: 50, // Option 1
+  }}
+/>
+
+// OR
+<FlashList
+  viewabilityConfig={{
+    viewAreaCoveragePercentThreshold: 50, // Option 2
+  }}
+/>
+```
+
+<Warning>
+Changing `viewabilityConfig` on the fly is not supported.
+</Warning>

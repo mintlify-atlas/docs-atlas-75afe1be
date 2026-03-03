@@ -1,0 +1,665 @@
+---
+title: Performant Components
+description: Writing performant list items for FlashList
+---
+
+While FlashList does its best to achieve high performance, it will still perform poorly if your item components are slow to render. This guide covers best practices for writing performant list item components.
+
+## Understanding Performance
+
+<Warning>
+Always profile performance in release mode. FlashList's performance between JS dev mode and release mode differs greatly due to a much smaller render buffer in dev mode.
+</Warning>
+
+Before optimizing, understand what makes FlashList fast:
+
+1. **View Recycling**: Components are reused instead of created/destroyed
+2. **Minimal Re-renders**: Only visible items are rendered initially
+3. **Efficient Updates**: Smart diffing prevents unnecessary renders
+
+Your item components should be optimized to work with these mechanisms, not against them.
+
+## Essential Optimizations
+
+### 1. Remove `key` Props
+
+<Warning>
+Using `key` prop inside your item and item's nested components will **highly degrade performance**.
+</Warning>
+
+Make sure your **item components and their nested components don't have a `key` prop**. Using this prop will lead to FlashList not being able to recycle views, losing all the benefits of using it over FlatList.
+
+#### Why Keys Harm FlashList
+
+FlashList's core performance advantage comes from **recycling** components. When you add a `key` prop that changes between different data items, React treats the component as entirely different and forces a complete re-creation of the component tree.
+
+**Example Problem:**
+
+```tsx
+// ❌ Bad: Keys prevent recycling
+const MyNestedComponent = ({ item }) => {
+  return <Text key={item.id}>I am nested!</Text>; // Don't do this!
+};
+
+const MyItem = ({ item }) => {
+  return (
+    <View key={item.id}> {/* Don't do this! */}
+      <MyNestedComponent item={item} />
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+**Correct Approach:**
+
+```tsx
+// ✅ Good: No keys, recycling works perfectly
+const MyNestedComponent = ({ item }) => {
+  return <Text>I am nested!</Text>;
+};
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <MyNestedComponent item={item} />
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+#### Handling Required Keys (with .map)
+
+When React forces you to use `key` prop (like when using `.map`), use the **`useMappingHelper`** hook:
+
+```tsx
+import { useMappingHelper } from "@shopify/flash-list";
+
+const MyItem = ({ item }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View>
+      {item.users.map((user, index) => (
+        <Text key={getMappingKey(index, user.id)}>
+          {user.name}
+        </Text>
+      ))}
+    </View>
+  );
+};
+```
+
+The `useMappingHelper` hook intelligently provides the right key strategy:
+
+- **Inside FlashList**: Uses stable keys that don't change during recycling
+- **Outside FlashList**: Uses the provided item key for proper React reconciliation
+
+This ensures components can be recycled properly while maintaining React's reconciliation correctness.
+
+### 2. Use getItemType for Heterogeneous Lists
+
+**If you have different types of cell components that are vastly different, leverage the `getItemType` prop.**
+
+When the list recycles items and the component type changes drastically (e.g., from a text message to an image), React won't be able to optimize the re-render since the whole render tree changes.
+
+**Example Without `getItemType`:**
+
+```tsx
+enum MessageType {
+  Text,
+  Image,
+}
+
+interface TextMessage {
+  text: string;
+  type: MessageType.Text;
+}
+
+interface ImageMessage {
+  image: ImageSourcePropType;
+  type: MessageType.Image;
+}
+
+type Message = ImageMessage | TextMessage;
+
+// ❌ Performance issue: Text components get recycled as Image and vice versa
+const MessageItem = ({ item }: { item: Message }) => {
+  switch (item.type) {
+    case MessageType.Text:
+      return <Text>{item.text}</Text>;
+    case MessageType.Image:
+      return <Image source={item.image} />;
+  }
+};
+
+const MessageList = () => {
+  return (
+    <FlashList
+      renderItem={({ item }) => <MessageItem item={item} />}
+      data={messages}
+      estimatedItemSize={200}
+    />
+  );
+};
+```
+
+**Correct Approach with `getItemType`:**
+
+```tsx
+// ✅ Good: Separate recycling pools for different types
+const MessageList = () => {
+  return (
+    <FlashList
+      renderItem={({ item }) => <MessageItem item={item} />}
+      data={messages}
+      estimatedItemSize={200}
+      getItemType={(item) => item.type} // Separate recycling pools!
+    />
+  );
+};
+```
+
+FlashList will now use separate recycling pools based on `item.type`. Text messages will only be recycled as text messages, and images as images, making re-renders much faster.
+
+<Note>
+`getItemType` is called very frequently. Keep it fast - just return a simple type identifier.
+</Note>
+
+### 3. Memoize Expensive Computations
+
+If you do any calculations that might take a lot of resources, consider memoizing them:
+
+```tsx
+import { useMemo } from "react";
+
+const MyItem = ({ item }) => {
+  // ✅ Expensive calculation is memoized
+  const processedData = useMemo(() => {
+    return complexDataProcessing(item.rawData);
+  }, [item.rawData]);
+
+  const formattedDate = useMemo(() => {
+    return new Date(item.timestamp).toLocaleDateString();
+  }, [item.timestamp]);
+
+  return (
+    <View>
+      <Text>{processedData}</Text>
+      <Text>{formattedDate}</Text>
+    </View>
+  );
+};
+```
+
+**Even better:** Pre-compute expensive operations at the data level:
+
+```tsx
+// ✅ Best: Compute once when data loads
+const processedData = rawData.map((item) => ({
+  ...item,
+  processedValue: complexDataProcessing(item.rawData),
+  formattedDate: new Date(item.timestamp).toLocaleDateString(),
+}));
+
+<FlashList
+  data={processedData}
+  renderItem={({ item }) => (
+    <View>
+      <Text>{item.processedValue}</Text>
+      <Text>{item.formattedDate}</Text>
+    </View>
+  )}
+  estimatedItemSize={100}
+/>;
+```
+
+### 4. Memoize Leaf Components
+
+Components that don't directly depend on the `item` prop can be memoized to skip re-renders during recycling:
+
+```tsx
+import { memo } from "react";
+
+// Heavy component that doesn't depend on item
+const MyHeavyComponent = () => {
+  return (
+    <View>
+      <ComplexVisualization />
+      <AnotherHeavyComponent />
+    </View>
+  );
+};
+
+// ✅ Memoize it to prevent re-renders
+const MemoizedMyHeavyComponent = memo(MyHeavyComponent);
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <MemoizedMyHeavyComponent /> {/* Won't re-render on recycle */}
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+**For components that take props:**
+
+```tsx
+interface IconProps {
+  name: string;
+  size: number;
+}
+
+// Only re-renders if name or size changes
+const MemoizedIcon = memo<IconProps>(({ name, size }) => {
+  return <Icon name={name} size={size} />;
+});
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <MemoizedIcon name="star" size={24} /> {/* Same props = no re-render */}
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+### 5. Use useCallback for Event Handlers
+
+Memoize callbacks to prevent unnecessary re-renders of child components:
+
+```tsx
+import { useCallback, memo } from "react";
+
+interface ButtonProps {
+  onPress: () => void;
+  title: string;
+}
+
+const MemoizedButton = memo<ButtonProps>(({ onPress, title }) => {
+  return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>;
+});
+
+const MyItem = ({ item, onItemPress }) => {
+  // ✅ Callback is memoized
+  const handlePress = useCallback(() => {
+    onItemPress(item.id);
+  }, [item.id, onItemPress]);
+
+  return (
+    <View>
+      <Text>{item.title}</Text>
+      <MemoizedButton onPress={handlePress} title="View Details" />
+    </View>
+  );
+};
+```
+
+## Advanced Optimizations
+
+### Memoize FlashList Props
+
+<Note>
+Memoizing props passed to FlashList is more important in v2. We allow developers to ensure that props are memoized and will prevent re-renders of children wherever obvious.
+</Note>
+
+```tsx
+import { useMemo, useCallback } from "react";
+
+const MyList = () => {
+  const [data, setData] = useState(initialData);
+  const [selectedId, setSelectedId] = useState(null);
+
+  // ✅ Memoize renderItem
+  const renderItem = useCallback(
+    ({ item }) => (
+      <MyItem
+        item={item}
+        isSelected={item.id === selectedId}
+        onPress={setSelectedId}
+      />
+    ),
+    [selectedId]
+  );
+
+  // ✅ Memoize keyExtractor
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  // ✅ Memoize getItemType
+  const getItemType = useCallback((item) => item.type, []);
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemType={getItemType}
+      estimatedItemSize={100}
+    />
+  );
+};
+```
+
+### Optimize Image Loading
+
+Images can significantly impact list performance:
+
+```tsx
+import FastImage from "react-native-fast-image";
+
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      {/* ✅ Use FastImage for better performance */}
+      <FastImage
+        source={{ uri: item.imageUrl, priority: FastImage.priority.normal }}
+        style={{ width: 50, height: 50 }}
+        resizeMode={FastImage.resizeMode.cover}
+      />
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+### Avoid Anonymous Functions in Render
+
+```tsx
+// ❌ Bad: Creates new function on every render
+const MyItem = ({ item, onPress }) => {
+  return (
+    <Pressable onPress={() => onPress(item.id)}>
+      <Text>{item.title}</Text>
+    </Pressable>
+  );
+};
+
+// ✅ Good: Memoized callback
+const MyItem = ({ item, onPress }) => {
+  const handlePress = useCallback(() => {
+    onPress(item.id);
+  }, [item.id, onPress]);
+
+  return (
+    <Pressable onPress={handlePress}>
+      <Text>{item.title}</Text>
+    </Pressable>
+  );
+};
+```
+
+### Simplify Component Structure
+
+Flatter component hierarchies render faster:
+
+```tsx
+// ❌ Bad: Deep nesting
+const MyItem = ({ item }) => {
+  return (
+    <View>
+      <View>
+        <View>
+          <View>
+            <Text>{item.title}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+// ✅ Good: Flatter structure
+const MyItem = ({ item }) => {
+  return (
+    <View style={styles.container}>
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+### Memoize Styles
+
+```tsx
+import { useMemo } from "react";
+
+const MyItem = ({ item }) => {
+  // ✅ Dynamic styles are memoized
+  const containerStyle = useMemo(
+    () => ({
+      backgroundColor: item.isHighlighted ? "#ffeb3b" : "transparent",
+      padding: 16,
+    }),
+    [item.isHighlighted]
+  );
+
+  return (
+    <View style={containerStyle}>
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+
+// ✅ Even better: Use static styles when possible
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+  },
+  highlighted: {
+    backgroundColor: "#ffeb3b",
+  },
+});
+
+const MyItem = ({ item }) => {
+  return (
+    <View style={[styles.container, item.isHighlighted && styles.highlighted]}>
+      <Text>{item.title}</Text>
+    </View>
+  );
+};
+```
+
+## Complete Example
+
+Here's a complete example incorporating all best practices:
+
+```tsx
+import React, { memo, useCallback, useMemo } from "react";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { useRecyclingState } from "@shopify/flash-list";
+
+// ✅ Memoized child component
+const Avatar = memo<{ uri: string; size: number }>(({ uri, size }) => {
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: size, height: size, borderRadius: size / 2 }}
+    />
+  );
+});
+
+// ✅ Separate types use getItemType
+enum ItemType {
+  Header = "header",
+  User = "user",
+  Footer = "footer",
+}
+
+interface HeaderItem {
+  type: ItemType.Header;
+  title: string;
+}
+
+interface UserItem {
+  type: ItemType.User;
+  id: string;
+  name: string;
+  avatarUrl: string;
+  bio: string;
+}
+
+interface FooterItem {
+  type: ItemType.Footer;
+  text: string;
+}
+
+type ListItem = HeaderItem | UserItem | FooterItem;
+
+// ✅ Static styles
+const styles = StyleSheet.create({
+  headerContainer: {
+    padding: 16,
+    backgroundColor: "#f5f5f5",
+  },
+  userContainer: {
+    flexDirection: "row",
+    padding: 16,
+    alignItems: "center",
+  },
+  userInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  expanded: {
+    backgroundColor: "#e3f2fd",
+  },
+});
+
+// ✅ Optimized item component
+const ListItemComponent = memo<{
+  item: ListItem;
+  onUserPress: (id: string) => void;
+}>(({ item, onUserPress }) => {
+  // ✅ State resets on recycle
+  const [isExpanded, setIsExpanded] = useRecyclingState(
+    false,
+    [item.type === ItemType.User ? item.id : null]
+  );
+
+  // ✅ Memoized callback
+  const handlePress = useCallback(() => {
+    if (item.type === ItemType.User) {
+      setIsExpanded(!isExpanded);
+      onUserPress(item.id);
+    }
+  }, [item, isExpanded, onUserPress]);
+
+  // Render different types
+  if (item.type === ItemType.Header) {
+    return (
+      <View style={styles.headerContainer}>
+        <Text style={{ fontSize: 18, fontWeight: "bold" }}>{item.title}</Text>
+      </View>
+    );
+  }
+
+  if (item.type === ItemType.Footer) {
+    return (
+      <View style={styles.headerContainer}>
+        <Text>{item.text}</Text>
+      </View>
+    );
+  }
+
+  // User item
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={[styles.userContainer, isExpanded && styles.expanded]}
+    >
+      <Avatar uri={item.avatarUrl} size={48} />
+      <View style={styles.userInfo}>
+        <Text style={{ fontWeight: "600" }}>{item.name}</Text>
+        {isExpanded && <Text style={{ marginTop: 4 }}>{item.bio}</Text>}
+      </View>
+    </Pressable>
+  );
+});
+
+// ✅ Optimized list component
+export const UserList = ({ data }: { data: ListItem[] }) => {
+  // ✅ Memoized callbacks
+  const handleUserPress = useCallback((id: string) => {
+    console.log("User pressed:", id);
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ListItem }) => (
+      <ListItemComponent item={item} onUserPress={handleUserPress} />
+    ),
+    [handleUserPress]
+  );
+
+  const keyExtractor = useCallback((item: ListItem) => {
+    if (item.type === ItemType.User) return item.id;
+    return item.type;
+  }, []);
+
+  const getItemType = useCallback((item: ListItem) => item.type, []);
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemType={getItemType}
+      estimatedItemSize={80}
+    />
+  );
+};
+```
+
+## Performance Checklist
+
+Before considering your component optimized, verify:
+
+- [ ] No `key` props used inside item components
+- [ ] Using `getItemType` for heterogeneous lists
+- [ ] Expensive computations are memoized with `useMemo`
+- [ ] Event handlers are memoized with `useCallback`
+- [ ] Heavy child components are wrapped with `memo`
+- [ ] FlashList props (renderItem, keyExtractor, etc.) are memoized
+- [ ] Using `useRecyclingState` for local state that needs resetting
+- [ ] Images use optimized loading (e.g., FastImage)
+- [ ] Component structure is as flat as possible
+- [ ] Tested in release mode, not dev mode
+
+## Profiling Performance
+
+Use React DevTools Profiler to identify slow components:
+
+```tsx
+import { Profiler } from "react";
+
+const onRenderCallback = (
+  id: string,
+  phase: "mount" | "update",
+  actualDuration: number
+) => {
+  console.log(`${id} (${phase}) took ${actualDuration}ms`);
+};
+
+<Profiler id="FlashList" onRender={onRenderCallback}>
+  <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
+</Profiler>;
+```
+
+<Note>
+Always measure performance before and after optimizations. Not all optimizations provide meaningful benefits, and some can even make things worse.
+</Note>
+
+## Summary
+
+1. **Remove `key` props** from item components (use `useMappingHelper` for `.map`)
+2. **Use `getItemType`** for heterogeneous lists
+3. **Memoize everything**: computations, callbacks, components, and FlashList props
+4. **Simplify structure** and avoid deep nesting
+5. **Test in release mode** - dev mode performance is not representative
+6. **Profile and measure** - only optimize what's actually slow
+
+By following these practices, your FlashList will render smoothly even with complex item components.

@@ -1,0 +1,544 @@
+---
+title: React Native Reanimated
+description: Use Reanimated for powerful animations in your lists
+icon: wand-magic-sparkles
+---
+
+[React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) is a powerful animation library that provides better performance and more features than React Native's built-in `LayoutAnimation` API. FlashList fully supports Reanimated for both view animations and layout transitions.
+
+## What's Supported
+
+FlashList supports:
+- ✅ View animations with `Animated.View`
+- ✅ Most [layout animations](https://docs.swmansion.com/react-native-reanimated/docs/layout-animations/layout-transitions/)
+- ✅ Shared values and animated styles
+- ✅ Gesture handling
+
+## Installation
+
+First, install React Native Reanimated:
+
+```bash
+npm install react-native-reanimated
+```
+
+Follow the [Reanimated installation guide](https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/getting-started/) to complete setup.
+
+## Layout Animations
+
+For layout animations (entering, exiting, layout transitions), you need to call `prepareForLayoutAnimationRender()` before making data changes:
+
+```tsx
+import React, { useRef, useState } from "react";
+import { View, Text, Pressable } from "react-native";
+import Animated, { FadeOut, SlideInLeft } from "react-native-reanimated";
+import { FlashList } from "@shopify/flash-list";
+
+const AnimatedList = () => {
+  const [data, setData] = useState([1, 2, 3, 4, 5]);
+  const listRef = useRef<FlashList<number>>(null);
+
+  const removeItem = (item: number) => {
+    setData((current) => current.filter((i) => i !== item));
+    // Prepare FlashList before the animation
+    listRef.current?.prepareForLayoutAnimationRender();
+  };
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={data}
+      keyExtractor={(item) => item.toString()}
+      renderItem={({ item }) => (
+        <Animated.View
+          entering={SlideInLeft}
+          exiting={FadeOut}
+          style={{ padding: 20, backgroundColor: "#fff", marginVertical: 4 }}
+        >
+          <Pressable onPress={() => removeItem(item)}>
+            <Text>Item {item} - Tap to remove</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+      estimatedItemSize={68}
+    />
+  );
+};
+```
+
+## Using Hooks in List Items
+
+When using Reanimated hooks like `useSharedValue` inside list items, remember that **views get recycled**. This means a shared value can transfer to a different item when scrolling.
+
+### The Problem
+
+```tsx
+// ❌ WRONG: Shared values will leak between recycled items
+const Item = ({ item }: { item: { id: string; title: string } }) => {
+  const scale = useSharedValue(1);
+  
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Text>{item.title}</Text>
+    </Animated.View>
+  );
+};
+```
+
+When this view is recycled for a different item, the old `scale` value persists.
+
+### The Solution
+
+Reset shared values when the item's identity changes:
+
+```tsx
+import React, { useEffect } from "react";
+import Animated, { useSharedValue, withSpring } from "react-native-reanimated";
+import { Pressable } from "react-native";
+
+interface ItemProps {
+  item: { id: string; title: string };
+}
+
+const Item = ({ item }: ItemProps) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  // Reset values when item.id changes (view was recycled)
+  useEffect(() => {
+    scale.value = 1;
+    opacity.value = 1;
+  }, [item.id, scale, opacity]);
+
+  const handlePress = () => {
+    scale.value = withSpring(0.95);
+    setTimeout(() => {
+      scale.value = withSpring(1);
+    }, 150);
+  };
+
+  return (
+    <Pressable onPress={handlePress}>
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          opacity,
+          padding: 20,
+          backgroundColor: "#fff",
+        }}
+      >
+        <Text>{item.title}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
+```
+
+<Warning>
+Always reset shared values in `useEffect` when the item's unique identifier changes to prevent state leaking between recycled views.
+</Warning>
+
+## Complete Examples
+
+### Interactive Card Animation
+
+```tsx
+import React, { useEffect } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { FlashList } from "@shopify/flash-list";
+
+interface CardProps {
+  item: { id: string; title: string; subtitle: string };
+}
+
+const AnimatedCard = ({ item }: CardProps) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
+
+  // Reset animation values when item changes
+  useEffect(() => {
+    scale.value = 1;
+    opacity.value = 1;
+    translateY.value = 0;
+  }, [item.id, scale, opacity, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateY: translateY.value },
+    ],
+    opacity: opacity.value,
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95);
+    opacity.value = withTiming(0.8, { duration: 150 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1);
+    opacity.value = withTiming(1, { duration: 150 });
+  };
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
+      <Animated.View style={[styles.card, animatedStyle]}>
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.subtitle}>{item.subtitle}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+const AnimatedCardList = () => {
+  const data = Array.from({ length: 50 }, (_, i) => ({
+    id: `item-${i}`,
+    title: `Card ${i + 1}`,
+    subtitle: `This is card number ${i + 1}`,
+  }));
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={({ item }) => <AnimatedCard item={item} />}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={100}
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "white",
+    padding: 20,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#666",
+  },
+});
+
+export default AnimatedCardList;
+```
+
+### Swipeable Delete Action
+
+```tsx
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedGestureHandler,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
+import { PanGestureHandler } from "react-native-gesture-handler";
+import { FlashList } from "@shopify/flash-list";
+
+interface SwipeableItemProps {
+  item: { id: string; text: string };
+  onDelete: (id: string) => void;
+}
+
+const SwipeableItem = ({ item, onDelete }: SwipeableItemProps) => {
+  const translateX = useSharedValue(0);
+  const itemHeight = useSharedValue(80);
+  const opacity = useSharedValue(1);
+
+  // Reset when item changes
+  useEffect(() => {
+    translateX.value = 0;
+    itemHeight.value = 80;
+    opacity.value = 1;
+  }, [item.id, translateX, itemHeight, opacity]);
+
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startX = translateX.value;
+    },
+    onActive: (event, ctx) => {
+      translateX.value = ctx.startX + event.translationX;
+    },
+    onEnd: (event) => {
+      if (event.translationX < -100) {
+        // Swipe threshold exceeded - delete
+        translateX.value = withSpring(-500);
+        itemHeight.value = withSpring(0);
+        opacity.value = withSpring(0);
+        runOnJS(onDelete)(item.id);
+      } else {
+        // Return to original position
+        translateX.value = withSpring(0);
+      }
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+    height: itemHeight.value,
+    opacity: opacity.value,
+  }));
+
+  return (
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={[styles.itemContainer, animatedStyle]}>
+        <View style={styles.deleteBackground}>
+          <Text style={styles.deleteText}>Delete</Text>
+        </View>
+        <View style={styles.itemContent}>
+          <Text style={styles.itemText}>{item.text}</Text>
+        </View>
+      </Animated.View>
+    </PanGestureHandler>
+  );
+};
+
+const styles = StyleSheet.create({
+  itemContainer: {
+    marginVertical: 4,
+    marginHorizontal: 16,
+    overflow: "hidden",
+  },
+  deleteBackground: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "#ff5252",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    paddingRight: 20,
+    width: "100%",
+  },
+  deleteText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  itemContent: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 8,
+  },
+  itemText: {
+    fontSize: 16,
+  },
+});
+```
+
+## Entering and Exiting Animations
+
+Reanimated provides pre-built entering and exiting animations:
+
+```tsx
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInLeft,
+  SlideOutRight,
+  ZoomIn,
+  BounceIn,
+} from "react-native-reanimated";
+
+const Item = ({ item }: { item: ItemType }) => {
+  return (
+    <Animated.View
+      entering={SlideInLeft.duration(300)}
+      exiting={FadeOut.duration(200)}
+    >
+      <Text>{item.title}</Text>
+    </Animated.View>
+  );
+};
+```
+
+<Tabs>
+  <Tab title="Fade">
+    ```tsx
+    entering={FadeIn}
+    exiting={FadeOut}
+    ```
+  </Tab>
+  <Tab title="Slide">
+    ```tsx
+    entering={SlideInLeft}
+    exiting={SlideOutRight}
+    ```
+  </Tab>
+  <Tab title="Zoom">
+    ```tsx
+    entering={ZoomIn}
+    exiting={ZoomOut}
+    ```
+  </Tab>
+  <Tab title="Bounce">
+    ```tsx
+    entering={BounceIn}
+    exiting={BounceOut}
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Optimization
+
+<CardGroup cols={2}>
+  <Card title="Minimal Dependencies" icon="filter">
+    When using hooks with dependency arrays, include only the minimal set of dependencies:
+
+    ```tsx
+    useAnimatedStyle(() => {
+      return { opacity: opacity.value };
+    }, [opacity]); // Only include what changes
+    ```
+  </Card>
+
+  <Card title="Run on UI Thread" icon="microchip">
+    Keep animations on the UI thread by avoiding `runOnJS` when possible:
+
+    ```tsx
+    // Good: Runs on UI thread
+    opacity.value = withTiming(1);
+
+    // Avoid: Crosses to JS thread
+    runOnJS(setOpacity)(1);
+    ```
+  </Card>
+
+  <Card title="Memoize Components" icon="memory">
+    Wrap your animated components with `React.memo` to prevent unnecessary re-renders:
+
+    ```tsx
+    const AnimatedItem = React.memo(({ item }: Props) => {
+      // ... animation logic
+    });
+    ```
+  </Card>
+
+  <Card title="Use worklets" icon="code">
+    Mark animation functions as worklets for better performance:
+
+    ```tsx
+    const animatedValue = useDerivedValue(() => {
+      'worklet';
+      return sharedValue.value * 2;
+    });
+    ```
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+### Scroll-Driven Animations
+
+```tsx
+import { useAnimatedScrollHandler } from "react-native-reanimated";
+
+const scrollY = useSharedValue(0);
+
+const scrollHandler = useAnimatedScrollHandler({
+  onScroll: (event) => {
+    scrollY.value = event.contentOffset.y;
+  },
+});
+
+<FlashList
+  onScroll={scrollHandler}
+  // ... other props
+/>
+```
+
+### Staggered Animations
+
+```tsx
+const Item = ({ item, index }: { item: ItemType; index: number }) => {
+  return (
+    <Animated.View
+      entering={FadeIn.delay(index * 100).duration(300)}
+    >
+      <Text>{item.title}</Text>
+    </Animated.View>
+  );
+};
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always reset shared values">
+    Use `useEffect` to reset shared values when the item's `id` changes to prevent state leaking between recycled views.
+
+    ```tsx
+    useEffect(() => {
+      myValue.value = 0;
+    }, [item.id, myValue]);
+    ```
+  </Accordion>
+
+  <Accordion title="Use prepareForLayoutAnimationRender for layout changes">
+    Call this method before data changes that affect layout:
+
+    ```tsx
+    listRef.current?.prepareForLayoutAnimationRender();
+    setData(newData);
+    ```
+  </Accordion>
+
+  <Accordion title="Optimize dependency arrays">
+    Only include values that actually change in dependency arrays:
+
+    ```tsx
+    useAnimatedStyle(() => ({ ... }), [value1, value2]);
+    ```
+  </Accordion>
+
+  <Accordion title="Test on low-end devices">
+    Animations that run smoothly on high-end phones may struggle on budget devices. Always test on your target hardware.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<Warning>
+**Animations not working?** Make sure you:
+1. Installed and configured Reanimated correctly
+2. Added `keyExtractor` to your FlashList
+3. Called `prepareForLayoutAnimationRender()` for layout animations
+</Warning>
+
+<Note>
+**Shared values persisting?** Remember to reset them when `item.id` changes in your `useEffect`.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="LayoutAnimation Guide" icon="wand-magic-sparkles" href="/guides/layout-animation">
+    Learn about the simpler LayoutAnimation API
+  </Card>
+  <Card title="Reanimated Docs" icon="book" href="https://docs.swmansion.com/react-native-reanimated/">
+    Official Reanimated documentation
+  </Card>
+</CardGroup>

@@ -1,0 +1,427 @@
+---
+title: useMappingHelper
+description: Helper hook for optimizing nested lists and mapped components within FlashList items
+---
+
+## Overview
+
+`useMappingHelper` is a utility hook that helps optimize the rendering of nested lists or mapped arrays within FlashList items. It provides a `getMappingKey` function that returns the appropriate key for mapped components, ensuring optimal performance.
+
+When rendering arrays of components inside FlashList items using `.map()`, this hook helps React's reconciliation algorithm work efficiently with FlashList's recycling mechanism.
+
+## Type Signature
+
+```typescript
+function useMappingHelper(): {
+  getMappingKey: (itemKey: string | number | bigint, index: number) => string | number | bigint;
+};
+```
+
+## Parameters
+
+This hook takes no parameters.
+
+## Returns
+
+<ResponseField name="getMappingKey" type="(itemKey: string | number | bigint, index: number) => string | number | bigint">
+  A function that returns the appropriate key for mapped components.
+  
+  **Parameters:**
+  - `itemKey: string | number | bigint` - The unique key or identifier for the item
+  - `index: number` - The index of the item in the array
+  
+  **Returns:** The index if within a RecyclerView context, otherwise returns the itemKey.
+</ResponseField>
+
+## When to Use
+
+Use `useMappingHelper` when you need to:
+
+- Render arrays of components inside FlashList items using `.map()`
+- Create nested lists within list items
+- Map over data to create multiple child components
+- Optimize React key assignment for recycled items
+
+## How It Works
+
+The hook checks if the component is within a FlashList (RecyclerView) context:
+
+- **Inside FlashList**: Returns the `index` as the key (optimal for recycling)
+- **Outside FlashList**: Returns the `itemKey` as the key (standard React pattern)
+
+This ensures that when items are recycled, React's reconciliation works efficiently without causing unnecessary re-renders or component remounting.
+
+## Basic Usage
+
+### Mapping Over Tags
+
+```tsx
+import { FlashList, useMappingHelper } from "@shopify/flash-list";
+import { Text, View } from "react-native";
+
+interface Product {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+const ProductItem = ({ product }: { product: Product }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View style={{ padding: 16 }}>
+      <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+        {product.name}
+      </Text>
+      
+      <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+        {product.tags.map((tag, index) => (
+          <View
+            key={getMappingKey(tag, index)}
+            style={{
+              backgroundColor: "#e0e0e0",
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              marginRight: 8,
+              marginBottom: 8,
+            }}
+          >
+            <Text>{tag}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const ProductList = ({ products }: { products: Product[] }) => (
+  <FlashList
+    data={products}
+    renderItem={({ item }) => <ProductItem product={item} />}
+    estimatedItemSize={100}
+  />
+);
+```
+
+### Multiple Child Components
+
+```tsx
+interface Post {
+  id: string;
+  title: string;
+  images: string[];
+}
+
+const PostItem = ({ post }: { post: Post }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View>
+      <Text>{post.title}</Text>
+      <View style={{ flexDirection: "row" }}>
+        {post.images.map((imageUrl, index) => (
+          <Image
+            key={getMappingKey(imageUrl, index)}
+            source={{ uri: imageUrl }}
+            style={{ width: 100, height: 100, marginRight: 8 }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+```
+
+## Real-World Examples
+
+### E-commerce Product with Features
+
+```tsx
+import { FlashList, useMappingHelper } from "@shopify/flash-list";
+import { View, Text, StyleSheet } from "react-native";
+
+interface Feature {
+  icon: string;
+  label: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  features: Feature[];
+  colors: string[];
+}
+
+const ProductCard = ({ product }: { product: Product }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.name}>{product.name}</Text>
+      <Text style={styles.price}>${product.price}</Text>
+      
+      {/* Feature list */}
+      <View style={styles.features}>
+        {product.features.map((feature, index) => (
+          <View key={getMappingKey(feature.label, index)} style={styles.feature}>
+            <Text>{feature.icon}</Text>
+            <Text>{feature.label}</Text>
+          </View>
+        ))}
+      </View>
+      
+      {/* Color options */}
+      <View style={styles.colors}>
+        {product.colors.map((color, index) => (
+          <View
+            key={getMappingKey(color, index)}
+            style={[styles.colorSwatch, { backgroundColor: color }]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const ProductList = ({ products }: { products: Product[] }) => (
+  <FlashList
+    data={products}
+    renderItem={({ item }) => <ProductCard product={item} />}
+    estimatedItemSize={200}
+  />
+);
+
+const styles = StyleSheet.create({
+  card: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    margin: 8,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  price: {
+    fontSize: 16,
+    color: "#2ecc71",
+    marginTop: 4,
+  },
+  features: {
+    marginTop: 12,
+    gap: 8,
+  },
+  feature: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  colors: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+  },
+  colorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+});
+```
+
+### Social Media Post with Reactions
+
+```tsx
+interface Reaction {
+  emoji: string;
+  count: number;
+}
+
+interface Post {
+  id: string;
+  author: string;
+  content: string;
+  reactions: Reaction[];
+  hashtags: string[];
+}
+
+const SocialPost = ({ post }: { post: Post }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View style={styles.post}>
+      <Text style={styles.author}>{post.author}</Text>
+      <Text style={styles.content}>{post.content}</Text>
+      
+      {/* Hashtags */}
+      <View style={styles.hashtags}>
+        {post.hashtags.map((tag, index) => (
+          <Text
+            key={getMappingKey(tag, index)}
+            style={styles.hashtag}
+          >
+            #{tag}
+          </Text>
+        ))}
+      </View>
+      
+      {/* Reactions */}
+      <View style={styles.reactions}>
+        {post.reactions.map((reaction, index) => (
+          <View
+            key={getMappingKey(`${reaction.emoji}-${reaction.count}`, index)}
+            style={styles.reaction}
+          >
+            <Text>{reaction.emoji}</Text>
+            <Text>{reaction.count}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+```
+
+### Recipe Card with Ingredients
+
+```tsx
+interface Ingredient {
+  name: string;
+  amount: string;
+}
+
+interface Recipe {
+  id: string;
+  name: string;
+  ingredients: Ingredient[];
+  steps: string[];
+}
+
+const RecipeCard = ({ recipe }: { recipe: Recipe }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View style={styles.recipeCard}>
+      <Text style={styles.recipeName}>{recipe.name}</Text>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Ingredients</Text>
+        {recipe.ingredients.map((ingredient, index) => (
+          <View
+            key={getMappingKey(ingredient.name, index)}
+            style={styles.ingredient}
+          >
+            <Text>{ingredient.amount}</Text>
+            <Text>{ingredient.name}</Text>
+          </View>
+        ))}
+      </View>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Instructions</Text>
+        {recipe.steps.map((step, index) => (
+          <View key={getMappingKey(step, index)} style={styles.step}>
+            <Text style={styles.stepNumber}>{index + 1}.</Text>
+            <Text style={styles.stepText}>{step}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+```
+
+## Why This Optimization Matters
+
+### Without useMappingHelper
+
+```tsx
+// Problematic: Using item keys in recycled items
+const ProductItem = ({ product }) => (
+  <View>
+    {product.tags.map((tag) => (
+      <View key={tag}> {/* ⚠️ May cause issues with recycling */}
+        <Text>{tag}</Text>
+      </View>
+    ))}
+  </View>
+);
+```
+
+When items are recycled, React might not properly reconcile components because the keys change unexpectedly, leading to:
+- Unnecessary component remounting
+- Lost component state
+- Performance degradation
+
+### With useMappingHelper
+
+```tsx
+// Optimized: Using index for recycled items
+const ProductItem = ({ product }) => {
+  const { getMappingKey } = useMappingHelper();
+  
+  return (
+    <View>
+      {product.tags.map((tag, index) => (
+        <View key={getMappingKey(tag, index)}> {/* ✓ Optimized for recycling */}
+          <Text>{tag}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+```
+
+This ensures React's reconciliation works efficiently with FlashList's recycling mechanism.
+
+## Best Practices
+
+<Tip>
+  Always use `useMappingHelper` when mapping over arrays inside FlashList items for optimal performance.
+</Tip>
+
+```tsx
+// ✓ Good: Using getMappingKey
+const { getMappingKey } = useMappingHelper();
+data.map((item, index) => (
+  <View key={getMappingKey(item.id, index)}>
+    {/* ... */}
+  </View>
+));
+
+// ✗ Bad: Using item key directly in recycled items
+data.map((item) => (
+  <View key={item.id}>
+    {/* ... */}
+  </View>
+));
+
+// ✗ Bad: Using index directly (works but less semantic)
+data.map((item, index) => (
+  <View key={index}>
+    {/* ... */}
+  </View>
+));
+```
+
+<Warning>
+  The optimization only applies when the component is used within a FlashList. Outside of FlashList, it falls back to using the item key, maintaining standard React behavior.
+</Warning>
+
+## Performance Impact
+
+Using `useMappingHelper` provides:
+
+- **Better reconciliation**: React efficiently updates only changed elements
+- **Reduced remounting**: Components stay mounted during recycling
+- **Preserved state**: Component state is maintained correctly
+- **Improved scroll performance**: Less work during recycling operations
+
+## Related Hooks
+
+- [useRecyclingState](/api/hooks/use-recycling-state) - State management for recycled items
+- [useFlashListContext](/api/hooks/use-flash-list-context) - Access FlashList context

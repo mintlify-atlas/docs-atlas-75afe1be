@@ -1,0 +1,656 @@
+---
+title: Migrating from FlatList
+description: Switch from FlatList to FlashList for instant performance improvements
+---
+
+If you're familiar with [FlatList](https://reactnative.dev/docs/flatlist), you already know how to use FlashList. You can try out FlashList by simply changing the component name.
+
+## Quick Start
+
+<Steps>
+  <Step title="Install FlashList">
+    <CodeGroup>
+    ```bash npm
+    npm install @shopify/flash-list
+    ```
+
+    ```bash yarn
+    yarn add @shopify/flash-list
+    ```
+
+    ```bash pnpm
+    pnpm add @shopify/flash-list
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Change the import">
+    ```diff
+    - import { FlatList } from 'react-native';
+    + import { FlashList } from '@shopify/flash-list';
+    ```
+  </Step>
+
+  <Step title="Update the component">
+    ```diff
+    - <FlatList
+    + <FlashList
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+      />
+    ```
+  </Step>
+</Steps>
+
+That's it! In most cases, FlashList is a drop-in replacement for FlatList.
+
+## Basic Example
+
+<CodeGroup>
+```jsx FlatList
+import React from 'react';
+import { FlatList, Text, View } from 'react-native';
+
+const DATA = [
+  { id: '1', title: 'First Item' },
+  { id: '2', title: 'Second Item' },
+  { id: '3', title: 'Third Item' },
+];
+
+const MyList = () => {
+  return (
+    <FlatList
+      data={DATA}
+      renderItem={({ item }) => (
+        <View style={{ padding: 20 }}>
+          <Text>{item.title}</Text>
+        </View>
+      )}
+      keyExtractor={item => item.id}
+    />
+  );
+};
+```
+
+```jsx FlashList
+import React from 'react';
+import { Text, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+
+const DATA = [
+  { id: '1', title: 'First Item' },
+  { id: '2', title: 'Second Item' },
+  { id: '3', title: 'Third Item' },
+];
+
+const MyList = () => {
+  return (
+    <FlashList
+      data={DATA}
+      renderItem={({ item }) => (
+        <View style={{ padding: 20 }}>
+          <Text>{item.title}</Text>
+        </View>
+      )}
+      keyExtractor={item => item.id}
+    />
+  );
+};
+```
+</CodeGroup>
+
+## Important Differences
+
+While FlashList is largely compatible with FlatList, there are some important differences to be aware of:
+
+### Required: estimatedItemSize (v1 only)
+
+<Note>
+If you're using FlashList v2, you can skip this section. Size estimates are not required in v2.
+</Note>
+
+In FlashList v1, you may need to provide an `estimatedItemSize` for optimal performance:
+
+```jsx
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  estimatedItemSize={50}
+/>
+```
+
+### Remove Explicit key Props
+
+<Warning>
+Remove explicit `key` prop definitions from your `renderItem` hierarchy. FlashList handles keys internally.
+</Warning>
+
+```jsx Before - FlatList
+renderItem={({ item }) => (
+  <View key={item.id}> {/* Remove this key */}
+    <Text>{item.title}</Text>
+  </View>
+)}
+```
+
+```jsx After - FlashList
+renderItem={({ item }) => (
+  <View> {/* No key needed here */}
+    <Text>{item.title}</Text>
+  </View>
+)}
+```
+
+Instead, always use `keyExtractor`:
+
+```jsx
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  keyExtractor={item => item.id} // Define keys here
+/>
+```
+
+### Using .map() Inside Items
+
+If you're using `.map()` inside your rendered items, use the `useMappingHelper` hook:
+
+<Accordion title="useMappingHelper for .map() operations">
+```jsx Before - FlatList
+const MyItem = ({ item }) => (
+  <View>
+    {item.tags.map((tag, index) => (
+      <Text key={tag}>{tag}</Text>
+    ))}
+  </View>
+);
+```
+
+```jsx After - FlashList
+import { useMappingHelper } from '@shopify/flash-list';
+
+const MyItem = ({ item }) => {
+  const { getMappingKey } = useMappingHelper();
+
+  return (
+    <View>
+      {item.tags.map((tag, index) => (
+        <Text key={getMappingKey(tag, index)}>{tag}</Text>
+      ))}
+    </View>
+  );
+};
+```
+
+This ensures optimal performance with FlashList's recycling system.
+</Accordion>
+
+## Prop Differences
+
+### Supported Props
+
+FlashList supports most FlatList props including:
+
+<CardGroup cols={2}>
+  <Card title="Core Props" icon="code">
+    - `data`
+    - `renderItem`
+    - `keyExtractor`
+    - `extraData`
+  </Card>
+  <Card title="Layout Props" icon="table">
+    - `horizontal`
+    - `numColumns`
+    - `contentContainerStyle`
+    - `ListHeaderComponent`
+  </Card>
+  <Card title="Callbacks" icon="bolt">
+    - `onEndReached`
+    - `onEndReachedThreshold`
+    - `onViewableItemsChanged`
+    - `onRefresh`
+  </Card>
+  <Card title="Components" icon="puzzle-piece">
+    - `ListFooterComponent`
+    - `ListEmptyComponent`
+    - `ItemSeparatorComponent`
+  </Card>
+</CardGroup>
+
+### Unsupported FlatList Props
+
+<Warning>
+The following FlatList props are not supported in FlashList:
+</Warning>
+
+<Accordion title="Props that don't work with FlashList">
+**Performance-related props** (not needed due to FlashList's architecture):
+- `getItemLayout` - FlashList automatically calculates layouts
+- `initialNumToRender` - FlashList manages rendering differently
+- `maxToRenderPerBatch` - Not applicable to FlashList's rendering model
+- `windowSize` - FlashList uses a different windowing strategy
+- `updateCellsBatchingPeriod` - Not needed in FlashList
+- `disableVirtualization` - Goes against FlashList's core design
+
+**Other unsupported props:**
+- `columnWrapperStyle` - Not currently implemented
+- `debug` - Use FlashList's built-in performance tracking instead
+- `listKey` - Not required in FlashList
+- `onScrollToIndexFailed` - Not currently implemented
+- `setNativeProps` - Not available in FlashList
+
+We don't currently plan to implement these props as they don't align with FlashList's architecture or provide value in its context.
+</Accordion>
+
+## Additional Features in FlashList
+
+FlashList includes several features not available in FlatList:
+
+### New Props
+
+<Accordion title="drawDistance">
+Draw distance for advanced rendering control:
+
+```jsx
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  drawDistance={500} // in dp/px
+/>
+```
+</Accordion>
+
+<Accordion title="getItemType">
+Improve recycling performance for heterogeneous lists:
+
+```jsx
+<FlashList
+  data={mixedData}
+  renderItem={renderItem}
+  getItemType={(item) => {
+    return item.type; // 'header', 'image', 'text', etc.
+  }}
+/>
+```
+</Accordion>
+
+<Accordion title="overrideItemLayout">
+Customize item spans for grid layouts:
+
+```jsx
+<FlashList
+  data={gridData}
+  numColumns={2}
+  overrideItemLayout={(layout, item) => {
+    layout.span = item.isWide ? 2 : 1; // Full width or half
+  }}
+  renderItem={renderItem}
+/>
+```
+</Accordion>
+
+<Accordion title="onLoad">
+Called once when the list has drawn items:
+
+```jsx
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  onLoad={({ elapsedTimeInMs }) => {
+    console.log(`List loaded in ${elapsedTimeInMs}ms`);
+  }}
+/>
+```
+</Accordion>
+
+### New Methods
+
+<Accordion title="Additional ref methods">
+FlashList provides extra methods through its ref:
+
+```jsx
+const listRef = useRef(null);
+
+// Get visible indices
+const visibleIndices = listRef.current?.getVisibleIndices();
+
+// Get list layout
+const layout = listRef.current?.getLayout();
+
+// Get first visible index
+const firstVisible = listRef.current?.getFirstVisibleIndex();
+
+// Flash scroll indicators
+listRef.current?.flashScrollIndicators();
+
+<FlashList
+  ref={listRef}
+  data={data}
+  renderItem={renderItem}
+/>
+```
+</Accordion>
+
+## Migration Steps
+
+Follow these steps when migrating from FlatList to FlashList:
+
+<Steps>
+  <Step title="Install and change imports">
+    Install FlashList and update your imports as shown above.
+  </Step>
+
+  <Step title="Remove explicit key props">
+    Scan your `renderItem` hierarchy for explicit `key` prop definitions and remove them. Use `keyExtractor` instead.
+  </Step>
+
+  <Step title="Add useMappingHelper for .map()">
+    If you use `.map()` inside rendered items, implement the `useMappingHelper` hook.
+  </Step>
+
+  <Step title="Check useState usage">
+    Review components in your `renderItem` hierarchy that use `useState`. Due to FlashList's recycling, you may need to use `useRecyclingState` instead.
+
+    <Accordion title="Understanding recycling">
+    FlashList recycles view components as you scroll. If a component maintains local state with `useState`, that state might not reset when the component is recycled for a different item.
+
+    ```jsx Before - Potential issue
+    const MyItem = ({ item }) => {
+      const [expanded, setExpanded] = useState(false);
+      // This state persists across recycling!
+
+      return (
+        <View>
+          <Text>{item.title}</Text>
+          {expanded && <Text>{item.details}</Text>}
+        </View>
+      );
+    };
+    ```
+
+    ```jsx After - Fixed with useRecyclingState
+    import { useRecyclingState } from '@shopify/flash-list';
+
+    const MyItem = ({ item }) => {
+      const [expanded, setExpanded] = useRecyclingState(
+        false,
+        [item.id] // State resets when item.id changes
+      );
+
+      return (
+        <View>
+          <Text>{item.title}</Text>
+          {expanded && <Text>{item.details}</Text>}
+        </View>
+      );
+    };
+    ```
+    </Accordion>
+  </Step>
+
+  <Step title="Use getItemType for heterogeneous lists">
+    If your list has different types of items (headers, images, text, etc.), pass their types using `getItemType` to improve performance.
+
+    ```jsx
+    <FlashList
+      data={data}
+      getItemType={(item) => item.type}
+      renderItem={({ item }) => {
+        switch (item.type) {
+          case 'header':
+            return <HeaderItem item={item} />;
+          case 'image':
+            return <ImageItem item={item} />;
+          default:
+            return <TextItem item={item} />;
+        }
+      }}
+    />
+    ```
+  </Step>
+
+  <Step title="Test in release mode">
+    <Warning>
+    Always test performance in release mode, not dev mode. FlashList can appear slower in dev mode.
+    </Warning>
+
+    ```bash
+    # iOS
+    npx react-native run-ios --configuration Release
+
+    # Android
+    npx react-native run-android --variant=release
+    ```
+  </Step>
+
+  <Step title="Memoize props">
+    Memoize props passed to FlashList for optimal performance:
+
+    ```jsx
+    const memoizedData = useMemo(() => data, [data]);
+    const memoizedRenderItem = useCallback(
+      ({ item }) => <Item item={item} />,
+      []
+    );
+
+    <FlashList
+      data={memoizedData}
+      renderItem={memoizedRenderItem}
+    />
+    ```
+  </Step>
+
+  <Step title="Add keyExtractor (highly recommended)">
+    While not strictly required, `keyExtractor` is highly recommended to prevent layout glitches:
+
+    ```jsx
+    <FlashList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={renderItem}
+    />
+    ```
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Pull to Refresh
+
+<CodeGroup>
+```jsx FlatList
+<FlatList
+  data={data}
+  renderItem={renderItem}
+  refreshing={refreshing}
+  onRefresh={onRefresh}
+/>
+```
+
+```jsx FlashList
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  refreshing={refreshing}
+  onRefresh={onRefresh}
+/>
+```
+</CodeGroup>
+
+### Infinite Scroll
+
+<CodeGroup>
+```jsx FlatList
+<FlatList
+  data={data}
+  renderItem={renderItem}
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}
+/>
+```
+
+```jsx FlashList
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}
+/>
+```
+</CodeGroup>
+
+### Grid Layout
+
+<CodeGroup>
+```jsx FlatList
+<FlatList
+  data={data}
+  renderItem={renderItem}
+  numColumns={2}
+/>
+```
+
+```jsx FlashList
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  numColumns={2}
+/>
+```
+</CodeGroup>
+
+### Horizontal List
+
+<CodeGroup>
+```jsx FlatList
+<FlatList
+  data={data}
+  renderItem={renderItem}
+  horizontal
+/>
+```
+
+```jsx FlashList
+<FlashList
+  data={data}
+  renderItem={renderItem}
+  horizontal
+/>
+```
+</CodeGroup>
+
+## Performance Comparison
+
+<Note>
+FlashList significantly outperforms FlatList, especially for:
+- Long lists (100+ items)
+- Lists with complex items
+- Frequent data updates
+- Heterogeneous content
+</Note>
+
+**Typical performance improvements:**
+- 5-10x faster initial render
+- Significantly reduced blank cells during fast scrolling
+- Lower memory usage
+- Smoother animations and interactions
+
+## Troubleshooting
+
+<Accordion title="Blank cells appearing during scroll">
+**Possible causes:**
+1. Testing in dev mode (test in release mode)
+2. Items have varying heights but no `getItemType` specified
+3. Heavy computation in `renderItem` (memoize components)
+4. Low `drawDistance` value (increase if needed)
+
+**Solutions:**
+```jsx
+// Add getItemType for varying heights
+<FlashList
+  getItemType={(item) => item.type}
+  // ...
+/>
+
+// Increase draw distance if needed
+<FlashList
+  drawDistance={500}
+  // ...
+/>
+
+// Memoize rendered items
+const MemoizedItem = memo(({ item }) => <Item item={item} />);
+```
+</Accordion>
+
+<Accordion title="Items not updating correctly">
+**Possible causes:**
+1. Missing `keyExtractor`
+2. State not resetting due to recycling
+3. Props not memoized properly
+
+**Solutions:**
+```jsx
+// Add keyExtractor
+<FlashList
+  keyExtractor={(item) => item.id}
+  // ...
+/>
+
+// Use useRecyclingState for local state
+import { useRecyclingState } from '@shopify/flash-list';
+
+const MyItem = ({ item }) => {
+  const [state, setState] = useRecyclingState(initialState, [item.id]);
+  // ...
+};
+
+// Memoize props
+const memoizedData = useMemo(() => data, [data]);
+const memoizedRenderItem = useCallback(renderItem, []);
+```
+</Accordion>
+
+<Accordion title="Layout issues or overlapping items">
+**Possible causes:**
+1. Inconsistent item heights without proper `getItemType`
+2. Custom `CellRendererComponent` interfering with layout
+3. Padding/margin issues in `contentContainerStyle`
+
+**Solutions:**
+```jsx
+// Use getItemType for consistent types
+<FlashList
+  getItemType={(item) => item.type}
+  // ...
+/>
+
+// Check contentContainerStyle
+<FlashList
+  contentContainerStyle={{
+    paddingHorizontal: 16, // Safe
+    paddingVertical: 16,   // Safe
+    // Avoid complex styling here
+  }}
+  // ...
+/>
+```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/fundamentals/usage">
+    Learn about all FlashList props and methods
+  </Card>
+  <Card title="Performant Components" icon="gauge-high" href="/fundamentals/performant-components">
+    Optimize your list items for maximum performance
+  </Card>
+  <Card title="Recycling" icon="recycle" href="/fundamentals/recycling">
+    Understand how FlashList recycles components
+  </Card>
+  <Card title="What's New in v2" icon="sparkles" href="/migration/v2-changes">
+    Explore FlashList v2 features (if using new architecture)
+  </Card>
+</CardGroup>

@@ -1,0 +1,410 @@
+---
+title: useLayoutState
+description: State management hook that automatically triggers FlashList layout recalculation on state changes
+---
+
+## Overview
+
+`useLayoutState` is a specialized state management hook that combines React's `useState` with FlashList's layout management. Any state changes automatically trigger a layout recalculation in the RecyclerView, ensuring that visual changes are properly reflected.
+
+This hook is essential when your state changes affect the layout or dimensions of list items.
+
+## Type Signature
+
+```typescript
+type LayoutStateSetter<T> = (
+  newValue: T | ((prevValue: T) => T),
+  skipParentLayout?: boolean
+) => void;
+
+type LayoutStateInitialValue<T> = T | (() => T);
+
+function useLayoutState<T>(
+  initialState: LayoutStateInitialValue<T>
+): [T, LayoutStateSetter<T>];
+```
+
+## Parameters
+
+<ParamField path="initialState" type="T | (() => T)" required>
+  The initial state value or a function that returns the initial state. Works the same as React's `useState`.
+</ParamField>
+
+## Returns
+
+Returns a tuple containing:
+
+<ResponseField name="[0]" type="T">
+  The current state value.
+</ResponseField>
+
+<ResponseField name="[1]" type="LayoutStateSetter<T>">
+  A setter function that updates the state and triggers a layout recalculation. Accepts either a new value or an updater function. Optionally accepts a `skipParentLayout` boolean as the second parameter.
+  
+  **Parameters:**
+  - `newValue: T | ((prevValue: T) => T)` - The new state value or updater function
+  - `skipParentLayout?: boolean` - If `true`, skips triggering the parent layout recalculation
+</ResponseField>
+
+## When to Use
+
+Use `useLayoutState` when you need to:
+
+- Change item dimensions dynamically
+- Show/hide content that affects layout
+- Update item heights based on user interaction
+- Manage any state that impacts the visual layout of items
+- Trigger layout recalculation after state changes
+
+<Warning>
+  Use `useLayoutState` only when state changes affect layout. For state that doesn't impact layout (like color changes, opacity, etc.), use regular `useState` or `useRecyclingState` to avoid unnecessary layout recalculations.
+</Warning>
+
+## Basic Usage
+
+### Dynamic Item Height
+
+```tsx
+import { FlashList, useLayoutState } from "@shopify/flash-list";
+import { Pressable, Text, View } from "react-native";
+
+interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  replies: Comment[];
+}
+
+const CommentItem = ({ comment }: { comment: Comment }) => {
+  const [showReplies, setShowReplies] = useLayoutState(false);
+
+  return (
+    <View>
+      <View style={{ padding: 12 }}>
+        <Text style={{ fontWeight: "bold" }}>{comment.author}</Text>
+        <Text>{comment.text}</Text>
+      </View>
+      
+      {comment.replies.length > 0 && (
+        <Pressable onPress={() => setShowReplies(!showReplies)}>
+          <Text>
+            {showReplies ? "Hide" : "Show"} {comment.replies.length} replies
+          </Text>
+        </Pressable>
+      )}
+      
+      {showReplies && (
+        <View style={{ paddingLeft: 20 }}>
+          {comment.replies.map((reply) => (
+            <CommentItem key={reply.id} comment={reply} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const CommentList = ({ comments }: { comments: Comment[] }) => (
+  <FlashList
+    data={comments}
+    renderItem={({ item }) => <CommentItem comment={item} />}
+    estimatedItemSize={80}
+  />
+);
+```
+
+### With Updater Function
+
+```tsx
+const Counter = () => {
+  const [count, setCount] = useLayoutState(0);
+
+  return (
+    <View>
+      <Text>Count: {count}</Text>
+      <Pressable onPress={() => setCount((prev) => prev + 1)}>
+        <Text>Increment</Text>
+      </Pressable>
+    </View>
+  );
+};
+```
+
+### Skip Parent Layout
+
+```tsx
+const ListItem = ({ item }: { item: Item }) => {
+  const [internalState, setInternalState] = useLayoutState(0);
+
+  const updateWithoutParentLayout = () => {
+    // Second parameter skips parent layout recalculation
+    setInternalState((prev) => prev + 1, true);
+  };
+
+  return (
+    <Pressable onPress={updateWithoutParentLayout}>
+      <Text>{item.title} - {internalState}</Text>
+    </Pressable>
+  );
+};
+```
+
+## Real-World Examples
+
+### Accordion List
+
+```tsx
+import { FlashList, useLayoutState } from "@shopify/flash-list";
+import { Pressable, Text, View, StyleSheet } from "react-native";
+
+interface Section {
+  id: string;
+  title: string;
+  content: string[];
+}
+
+const AccordionItem = ({ section }: { section: Section }) => {
+  const [isExpanded, setIsExpanded] = useLayoutState(false);
+
+  return (
+    <View style={styles.accordion}>
+      <Pressable
+        onPress={() => setIsExpanded(!isExpanded)}
+        style={styles.header}
+      >
+        <Text style={styles.headerText}>{section.title}</Text>
+        <Text>{isExpanded ? "▼" : "▶"}</Text>
+      </Pressable>
+      
+      {isExpanded && (
+        <View style={styles.content}>
+          {section.content.map((item, index) => (
+            <Text key={index} style={styles.contentText}>
+              {item}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const FAQ = ({ sections }: { sections: Section[] }) => (
+  <FlashList
+    data={sections}
+    renderItem={({ item }) => <AccordionItem section={item} />}
+    estimatedItemSize={60}
+  />
+);
+
+const styles = StyleSheet.create({
+  accordion: {
+    backgroundColor: "#fff",
+    marginVertical: 4,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#f5f5f5",
+  },
+  headerText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  content: {
+    padding: 16,
+    gap: 8,
+  },
+  contentText: {
+    fontSize: 14,
+    color: "#666",
+  },
+});
+```
+
+### Read More / Less Text
+
+```tsx
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+}
+
+const ArticleCard = ({ article }: { article: Article }) => {
+  const [isExpanded, setIsExpanded] = useLayoutState(false);
+  
+  const preview = article.content.slice(0, 100);
+  const showReadMore = article.content.length > 100;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.title}>{article.title}</Text>
+      <Text style={styles.content}>
+        {isExpanded ? article.content : preview}
+        {!isExpanded && showReadMore && "..."}
+      </Text>
+      
+      {showReadMore && (
+        <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+          <Text style={styles.readMore}>
+            {isExpanded ? "Read Less" : "Read More"}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+};
+```
+
+### Multi-Line Text Input
+
+```tsx
+import { TextInput } from "react-native";
+
+interface Note {
+  id: string;
+  title: string;
+}
+
+const NoteItem = ({ note }: { note: Note }) => {
+  const [text, setText] = useLayoutState("");
+  const [height, setHeight] = useLayoutState(40);
+
+  return (
+    <View style={styles.noteContainer}>
+      <Text style={styles.noteTitle}>{note.title}</Text>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        multiline
+        style={[styles.input, { height }]}
+        onContentSizeChange={(event) => {
+          setHeight(event.nativeEvent.contentSize.height);
+        }}
+      />
+    </View>
+  );
+};
+```
+
+### Image Gallery with Details
+
+```tsx
+interface Photo {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  photographer: string;
+}
+
+const PhotoCard = ({ photo }: { photo: Photo }) => {
+  const [showDetails, setShowDetails] = useLayoutState(false);
+
+  return (
+    <Pressable
+      onPress={() => setShowDetails(!showDetails)}
+      style={styles.photoCard}
+    >
+      <Image source={{ uri: photo.url }} style={styles.photoImage} />
+      
+      <View style={styles.photoInfo}>
+        <Text style={styles.photoTitle}>{photo.title}</Text>
+        
+        {showDetails && (
+          <View style={styles.photoDetails}>
+            <Text style={styles.photoDescription}>{photo.description}</Text>
+            <Text style={styles.photographer}>
+              By {photo.photographer}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+};
+```
+
+## Performance Considerations
+
+### Layout Recalculation Cost
+
+Triggering a layout recalculation has a performance cost. Use it wisely:
+
+```tsx
+// ✓ Good: Use for layout-affecting changes
+const [showContent, setShowContent] = useLayoutState(false);
+
+// ✗ Bad: Don't use for visual-only changes
+const [backgroundColor, setBackgroundColor] = useLayoutState("#fff");
+// Instead use:
+const [backgroundColor, setBackgroundColor] = useState("#fff");
+```
+
+### Skipping Parent Layout
+
+Use `skipParentLayout` when you know the change doesn't affect parent layout:
+
+```tsx
+const [counter, setCounter] = useLayoutState(0);
+
+// This doesn't affect layout, so skip parent layout recalculation
+const increment = () => {
+  setCounter((prev) => prev + 1, true);
+};
+```
+
+## Internal Implementation
+
+Under the hood, `useLayoutState`:
+
+1. Uses React's `useState` for state management
+2. Accesses the RecyclerView context via `useRecyclerViewContext`
+3. Calls `recyclerViewContext.layout()` after each state update (unless `skipParentLayout` is true)
+4. Ensures visual changes are reflected in FlashList's layout system
+
+## Comparison with Other State Hooks
+
+| Feature | useState | useRecyclingState | useLayoutState |
+|---------|----------|-------------------|----------------|
+| State management | ✓ | ✓ | ✓ |
+| Auto-reset on deps | ✗ | ✓ | ✗ |
+| Layout recalculation | ✗ | ✗ | ✓ |
+| Skip parent layout | ✗ | ✗ | ✓ |
+| Use case | General state | Recycled items | Layout changes |
+
+## Best Practices
+
+<Tip>
+  Combine `useLayoutState` with `useRecyclingState` when you need both auto-reset and layout recalculation:
+</Tip>
+
+```tsx
+const ListItem = ({ item }: { item: Item }) => {
+  // This will reset when item changes AND trigger layout recalculation
+  // Note: useRecyclingState internally uses useLayoutState
+  const [isExpanded, setIsExpanded] = useRecyclingState(false, [item.id]);
+  
+  return (
+    <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+      <View>
+        <Text>{item.title}</Text>
+        {isExpanded && <Text>{item.description}</Text>}
+      </View>
+    </Pressable>
+  );
+};
+```
+
+<Warning>
+  Avoid using `useLayoutState` for high-frequency updates as each state change triggers a layout recalculation.
+</Warning>
+
+## Related Hooks
+
+- [useRecyclingState](/api/hooks/use-recycling-state) - State management with auto-reset (internally uses `useLayoutState`)
+- [useFlashListContext](/api/hooks/use-flash-list-context) - Access FlashList context directly

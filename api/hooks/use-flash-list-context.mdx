@@ -1,0 +1,493 @@
+---
+title: useFlashListContext
+description: Access FlashList context to interact with parent list instance
+---
+
+## Overview
+
+`useFlashListContext` is a hook that provides access to the FlashList context, allowing child components to interact with their parent FlashList instance. This is useful when you need to trigger layout recalculations, access the list ref, or interact with parent/child scroll views.
+
+This hook is particularly valuable when building complex nested list scenarios or when you need to coordinate between a list item and its parent list.
+
+## Type Signature
+
+```typescript
+interface FlashListContext<T> {
+  layout: () => void;
+  getRef: () => FlashListRef<T> | null;
+  getParentRef: () => FlashListRef<unknown> | null;
+  getScrollViewRef: () => CompatScroller | null;
+  getParentScrollViewRef: () => CompatScroller | null;
+}
+
+function useFlashListContext<T>(): FlashListContext<T> | undefined;
+```
+
+## Parameters
+
+This hook takes no parameters.
+
+## Returns
+
+<ResponseField name="FlashListContext<T> | undefined" type="object">
+  Returns a context object if the component is rendered within a FlashList, otherwise returns `undefined`.
+  
+  <Expandable title="Context Properties">
+    <ResponseField name="layout" type="() => void">
+      Function to trigger a layout recalculation for the current FlashList.
+    </ResponseField>
+    
+    <ResponseField name="getRef" type="() => FlashListRef<T> | null">
+      Returns the ref for the current FlashList instance.
+    </ResponseField>
+    
+    <ResponseField name="getParentRef" type="() => FlashListRef<unknown> | null">
+      Returns the ref for the parent FlashList if present (useful for nested lists).
+    </ResponseField>
+    
+    <ResponseField name="getScrollViewRef" type="() => CompatScroller | null">
+      Returns the scroll view ref for the current FlashList.
+    </ResponseField>
+    
+    <ResponseField name="getParentScrollViewRef" type="() => CompatScroller | null">
+      Returns the scroll view ref for the parent FlashList if present.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## When to Use
+
+Use `useFlashListContext` when you need to:
+
+- Manually trigger layout recalculation from within list items
+- Access the FlashList ref from child components
+- Coordinate scrolling between nested lists
+- Implement custom scroll behaviors
+- Build advanced nested list scenarios
+- Check if a component is rendered within a FlashList
+
+## Basic Usage
+
+### Manual Layout Trigger
+
+```tsx
+import { useFlashListContext } from "@shopify/flash-list";
+import { useEffect } from "react";
+import { View, Text, Image } from "react-native";
+
+interface Product {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
+
+const ProductItem = ({ product }: { product: Product }) => {
+  const context = useFlashListContext();
+
+  // Trigger layout when image loads
+  const handleImageLoad = () => {
+    // Recalculate layout since image height might affect item size
+    context?.layout();
+  };
+
+  return (
+    <View>
+      <Image
+        source={{ uri: product.imageUrl }}
+        style={{ width: "100%", height: 200 }}
+        onLoad={handleImageLoad}
+      />
+      <Text>{product.name}</Text>
+    </View>
+  );
+};
+```
+
+### Accessing List Ref
+
+```tsx
+const ListItem = ({ item }: { item: Item }) => {
+  const context = useFlashListContext();
+
+  const scrollToTop = () => {
+    const ref = context?.getRef();
+    ref?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  return (
+    <View>
+      <Text>{item.title}</Text>
+      <Pressable onPress={scrollToTop}>
+        <Text>Scroll to Top</Text>
+      </Pressable>
+    </View>
+  );
+};
+```
+
+### Checking if Within FlashList
+
+```tsx
+const SmartComponent = () => {
+  const context = useFlashListContext();
+  const isInFlashList = context !== undefined;
+
+  if (isInFlashList) {
+    // Optimized rendering for FlashList
+    return <OptimizedView />;
+  } else {
+    // Standard rendering
+    return <StandardView />;
+  }
+};
+```
+
+## Real-World Examples
+
+### Dynamic Content with Layout Updates
+
+```tsx
+import { useFlashListContext } from "@shopify/flash-list";
+import { useState } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+}
+
+const ArticleItem = ({ article }: { article: Article }) => {
+  const context = useFlashListContext();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleExpand = () => {
+    setIsExpanded(!isExpanded);
+    // Trigger layout recalculation after expansion
+    context?.layout();
+  };
+
+  return (
+    <View style={styles.article}>
+      <Text style={styles.title}>{article.title}</Text>
+      
+      <Image
+        source={{ uri: `https://example.com/images/${article.id}.jpg` }}
+        style={styles.image}
+        onLoad={() => {
+          setImageLoaded(true);
+          // Recalculate layout once image is loaded
+          context?.layout();
+        }}
+      />
+      
+      <Text
+        style={styles.content}
+        numberOfLines={isExpanded ? undefined : 3}
+      >
+        {article.content}
+      </Text>
+      
+      <Pressable onPress={handleExpand}>
+        <Text style={styles.expandButton}>
+          {isExpanded ? "Show Less" : "Show More"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  article: {
+    padding: 16,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  image: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  content: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#333",
+  },
+  expandButton: {
+    marginTop: 8,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+});
+```
+
+### Nested List Coordination
+
+```tsx
+interface Category {
+  id: string;
+  name: string;
+  items: Product[];
+}
+
+const CategoryItem = ({ category }: { category: Category }) => {
+  const parentContext = useFlashListContext<Category>();
+
+  const handleItemPress = (item: Product) => {
+    // Scroll parent list to top when item is selected
+    const parentRef = parentContext?.getRef();
+    parentRef?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  return (
+    <View style={styles.category}>
+      <Text style={styles.categoryName}>{category.name}</Text>
+      <FlashList
+        horizontal
+        data={category.items}
+        renderItem={({ item }) => (
+          <ProductCard
+            product={item}
+            onPress={() => handleItemPress(item)}
+          />
+        )}
+        estimatedItemSize={150}
+      />
+    </View>
+  );
+};
+
+const MainList = ({ categories }: { categories: Category[] }) => (
+  <FlashList
+    data={categories}
+    renderItem={({ item }) => <CategoryItem category={item} />}
+    estimatedItemSize={200}
+  />
+);
+```
+
+### Scroll to Sibling Item
+
+```tsx
+interface Message {
+  id: string;
+  text: string;
+  replyToId?: string;
+}
+
+const MessageItem = ({ message, allMessages }: {
+  message: Message;
+  allMessages: Message[];
+}) => {
+  const context = useFlashListContext<Message>();
+
+  const scrollToRepliedMessage = () => {
+    if (!message.replyToId) return;
+    
+    const ref = context?.getRef();
+    const index = allMessages.findIndex((m) => m.id === message.replyToId);
+    
+    if (ref && index >= 0) {
+      ref.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5, // Center in viewport
+      });
+    }
+  };
+
+  return (
+    <View style={styles.message}>
+      {message.replyToId && (
+        <Pressable onPress={scrollToRepliedMessage}>
+          <Text style={styles.replyIndicator}>↑ Reply to message</Text>
+        </Pressable>
+      )}
+      <Text>{message.text}</Text>
+    </View>
+  );
+};
+```
+
+### Custom Pull-to-Refresh Indicator
+
+```tsx
+const CustomRefreshHeader = () => {
+  const context = useFlashListContext();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchNewData();
+    setRefreshing(false);
+    
+    // Trigger layout after data refresh
+    context?.layout();
+  };
+
+  return (
+    <View style={styles.refreshHeader}>
+      {refreshing ? (
+        <ActivityIndicator />
+      ) : (
+        <Pressable onPress={handleRefresh}>
+          <Text>Pull to refresh</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+};
+```
+
+### Accessing Parent Scroll View
+
+```tsx
+const NestedListItem = ({ item }: { item: Item }) => {
+  const context = useFlashListContext();
+
+  const disableParentScroll = () => {
+    // Get parent scroll view to disable scrolling during gesture
+    const parentScrollView = context?.getParentScrollViewRef();
+    parentScrollView?.setNativeProps({ scrollEnabled: false });
+  };
+
+  const enableParentScroll = () => {
+    const parentScrollView = context?.getParentScrollViewRef();
+    parentScrollView?.setNativeProps({ scrollEnabled: true });
+  };
+
+  return (
+    <PanGestureHandler
+      onGestureEvent={disableParentScroll}
+      onEnded={enableParentScroll}
+    >
+      <View>
+        <Text>{item.title}</Text>
+      </View>
+    </PanGestureHandler>
+  );
+};
+```
+
+## Advanced Use Cases
+
+### Coordinating Multiple Nested Lists
+
+```tsx
+interface Store {
+  id: string;
+  name: string;
+  departments: Department[];
+}
+
+interface Department {
+  id: string;
+  name: string;
+  products: Product[];
+}
+
+const ProductCard = ({ product }: { product: Product }) => {
+  const context = useFlashListContext<Product>();
+  
+  const scrollToStoreTop = () => {
+    // Access the grandparent FlashList
+    const parentContext = context?.getParentRef();
+    const grandparentRef = parentContext?.getParentRef?.();
+    grandparentRef?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  return (
+    <Pressable onPress={scrollToStoreTop}>
+      <View style={styles.productCard}>
+        <Text>{product.name}</Text>
+      </View>
+    </Pressable>
+  );
+};
+
+const DepartmentRow = ({ department }: { department: Department }) => (
+  <View>
+    <Text>{department.name}</Text>
+    <FlashList
+      horizontal
+      data={department.products}
+      renderItem={({ item }) => <ProductCard product={item} />}
+      estimatedItemSize={120}
+    />
+  </View>
+);
+
+const StoreView = ({ store }: { store: Store }) => (
+  <FlashList
+    data={store.departments}
+    renderItem={({ item }) => <DepartmentRow department={item} />}
+    estimatedItemSize={180}
+  />
+);
+```
+
+## Best Practices
+
+<Tip>
+  Always check if the context exists before using it, as it will be `undefined` when the component is rendered outside of a FlashList.
+</Tip>
+
+```tsx
+// ✓ Good: Check for context existence
+const context = useFlashListContext();
+if (context) {
+  context.layout();
+}
+
+// ✓ Good: Using optional chaining
+const context = useFlashListContext();
+context?.layout();
+
+// ✗ Bad: Assuming context always exists
+const context = useFlashListContext();
+context.layout(); // May throw error
+```
+
+<Warning>
+  Calling `layout()` frequently can impact performance. Only trigger layout recalculation when necessary, such as after dynamic content loads or size changes.
+</Warning>
+
+## Comparison with useLayoutState
+
+| Feature | useFlashListContext | useLayoutState |
+|---------|--------------------|-----------------|
+| Access to list ref | ✓ | ✗ |
+| Manual layout trigger | ✓ | ✗ |
+| State management | ✗ | ✓ |
+| Auto layout on change | ✗ | ✓ |
+| Access parent ref | ✓ | ✗ |
+
+Use `useFlashListContext` when you need direct access to the list instance. Use `useLayoutState` when you need state management with automatic layout triggers.
+
+## Internal Context Structure
+
+The context provides access to:
+
+- **Current FlashList**: Direct access to the immediate parent list
+- **Parent FlashList**: Access to the grandparent list (for nested scenarios)
+- **Scroll Views**: Both current and parent scroll view refs
+- **Layout Control**: Method to trigger layout recalculation
+
+This structure enables complex interactions between nested lists and their items.
+
+## Related Hooks
+
+- [useLayoutState](/api/hooks/use-layout-state) - State management with automatic layout recalculation
+- [useRecyclingState](/api/hooks/use-recycling-state) - State management with auto-reset for recycled items
+- [useMappingHelper](/api/hooks/use-mapping-helper) - Optimize mapped components in list items
+
+## Related APIs
+
+- [FlashListRef](/api/methods/scroll-methods) - FlashList ref methods
+- [FlashList Props](/api/flash-list) - FlashList configuration options

@@ -1,0 +1,319 @@
+---
+title: useRecyclingState
+description: A custom hook that provides state management with automatic reset functionality for recycled items
+---
+
+## Overview
+
+`useRecyclingState` is a specialized state management hook designed for FlashList components. It works like `useState`, but automatically resets the state when specified dependencies change, making it ideal for managing state in recycled list items.
+
+This hook is particularly useful when you need to maintain component-level state (like expansion state, selection state, or animation state) that should reset when the item is recycled and reused for different data.
+
+## Type Signature
+
+```typescript
+type RecyclingStateSetter<T> = (
+  newValue: T | ((prevValue: T) => T),
+  skipParentLayout?: boolean
+) => void;
+
+type RecyclingStateInitialValue<T> = T | (() => T);
+
+function useRecyclingState<T>(
+  initialState: RecyclingStateInitialValue<T>,
+  deps: React.DependencyList,
+  onReset?: () => void
+): [T, RecyclingStateSetter<T>];
+```
+
+## Parameters
+
+<ParamField path="initialState" type="T | (() => T)" required>
+  The initial state value or a function that returns the initial state. If a function is provided, it will be called to compute the initial value when the dependencies change.
+</ParamField>
+
+<ParamField path="deps" type="React.DependencyList" required>
+  Array of dependencies that trigger a state reset when changed. Typically includes the item's unique identifier (e.g., `[item.id]`).
+</ParamField>
+
+<ParamField path="onReset" type="() => void">
+  Optional callback function that is called when the state is reset due to dependency changes.
+</ParamField>
+
+## Returns
+
+Returns a tuple containing:
+
+<ResponseField name="[0]" type="T">
+  The current state value.
+</ResponseField>
+
+<ResponseField name="[1]" type="RecyclingStateSetter<T>">
+  A setState function that works like `useState`'s setState. Accepts either a new value or an updater function. Optionally accepts a `skipParentLayout` boolean as the second parameter to skip triggering a parent layout recalculation.
+</ResponseField>
+
+## When to Use
+
+Use `useRecyclingState` when you need to:
+
+- Manage expandable/collapsible list items
+- Track selection state for individual items
+- Control animations or transitions in list items
+- Store temporary UI state that should reset when items are recycled
+- Maintain form input state in list items
+
+The key benefit is that this hook avoids an extra `setState` call during recycling, which improves performance by preventing unnecessary re-renders.
+
+## Basic Usage
+
+### Expandable List Items
+
+```tsx
+import { FlashList, useRecyclingState } from "@shopify/flash-list";
+import { Pressable, Text, View } from "react-native";
+
+interface Item {
+  id: number;
+  title: string;
+  description: string;
+}
+
+const ListItem = ({ item }: { item: Item }) => {
+  // State automatically resets when item.id changes (item is recycled)
+  const [isExpanded, setIsExpanded] = useRecyclingState(false, [item.id]);
+
+  return (
+    <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+      <View>
+        <Text>{item.title}</Text>
+        {isExpanded && <Text>{item.description}</Text>}
+      </View>
+    </Pressable>
+  );
+};
+
+const MyList = ({ data }: { data: Item[] }) => (
+  <FlashList
+    data={data}
+    renderItem={({ item }) => <ListItem item={item} />}
+    estimatedItemSize={50}
+  />
+);
+```
+
+### With Initial Value Function
+
+```tsx
+const ListItem = ({ item }: { item: Item }) => {
+  // Compute initial state based on item properties
+  const [isExpanded, setIsExpanded] = useRecyclingState(
+    () => item.isDefaultExpanded || false,
+    [item.id]
+  );
+
+  return (
+    <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+      <View>
+        <Text>{item.title}</Text>
+        {isExpanded && <Text>{item.description}</Text>}
+      </View>
+    </Pressable>
+  );
+};
+```
+
+### With Reset Callback
+
+```tsx
+const ListItem = ({ item }: { item: Item }) => {
+  const [isExpanded, setIsExpanded] = useRecyclingState(
+    false,
+    [item.id],
+    () => {
+      // Called when state is reset (item recycled)
+      console.log(`State reset for item ${item.id}`);
+    }
+  );
+
+  return (
+    <Pressable onPress={() => setIsExpanded(!isExpanded)}>
+      <View>
+        <Text>{item.title}</Text>
+        {isExpanded && <Text>{item.description}</Text>}
+      </View>
+    </Pressable>
+  );
+};
+```
+
+## Real-World Examples
+
+### Movie Grid with Expandable Cards
+
+```tsx
+import { FlashList, useRecyclingState } from "@shopify/flash-list";
+import { Pressable, Text, View, StyleSheet } from "react-native";
+
+interface Movie {
+  id: number;
+  title: string;
+  year: number;
+  genre: string;
+  rating: number;
+}
+
+const MovieCard = ({ item }: { item: Movie }) => {
+  const [isExpanded, setIsExpanded] = useRecyclingState(false, [item.id]);
+
+  const height = isExpanded ? 200 : 150;
+
+  return (
+    <Pressable
+      onPress={() => setIsExpanded(!isExpanded)}
+      style={styles.card}
+    >
+      <View style={[styles.cardContent, { height }]}>
+        <Text style={styles.title}>{item.title}</Text>
+        {isExpanded && (
+          <View style={styles.details}>
+            <Text>{item.year}</Text>
+            <Text>{item.genre}</Text>
+            <Text>★ {item.rating.toFixed(1)}</Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+};
+
+const MovieGrid = ({ movies }: { movies: Movie[] }) => (
+  <FlashList
+    data={movies}
+    renderItem={({ item }) => <MovieCard item={item} />}
+    numColumns={2}
+    estimatedItemSize={150}
+  />
+);
+
+const styles = StyleSheet.create({
+  card: {
+    margin: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  cardContent: {
+    padding: 12,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  details: {
+    marginTop: 8,
+    gap: 4,
+  },
+});
+```
+
+### Multi-Select List
+
+```tsx
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+const SelectableProduct = ({ item }: { item: Product }) => {
+  const [isSelected, setIsSelected] = useRecyclingState(false, [item.id]);
+
+  return (
+    <Pressable
+      onPress={() => setIsSelected(!isSelected)}
+      style={[
+        styles.productItem,
+        isSelected && styles.productItemSelected,
+      ]}
+    >
+      <Text>{item.name}</Text>
+      <Text>${item.price}</Text>
+      {isSelected && <Text>✓</Text>}
+    </Pressable>
+  );
+};
+```
+
+### Form Inputs in List
+
+```tsx
+import { TextInput } from "react-native";
+
+interface FormField {
+  id: string;
+  label: string;
+  placeholder: string;
+}
+
+const FormFieldItem = ({ item }: { item: FormField }) => {
+  const [value, setValue] = useRecyclingState("", [item.id]);
+
+  return (
+    <View style={styles.fieldContainer}>
+      <Text style={styles.label}>{item.label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={setValue}
+        placeholder={item.placeholder}
+        style={styles.input}
+      />
+    </View>
+  );
+};
+```
+
+## Performance Benefits
+
+`useRecyclingState` provides several performance optimizations:
+
+1. **Automatic Reset**: No manual cleanup needed when items are recycled
+2. **Avoids Extra Renders**: Doesn't trigger an additional setState during recycling
+3. **Change Detection**: Only triggers re-renders when the value actually changes
+4. **Layout Control**: Optional `skipParentLayout` parameter to prevent unnecessary parent layout recalculations
+
+## Comparison with useState
+
+| Feature | useState | useRecyclingState |
+|---------|----------|------------------|
+| State management | ✓ | ✓ |
+| Auto-reset on deps change | ✗ | ✓ |
+| Optimized for recycling | ✗ | ✓ |
+| Performance optimization | ✗ | ✓ |
+| Reset callback | ✗ | ✓ |
+| Layout control | ✗ | ✓ |
+
+## Best Practices
+
+<Tip>
+  Always include the item's unique identifier in the dependencies array to ensure state resets when items are recycled.
+</Tip>
+
+<Warning>
+  Don't use `useRecyclingState` for state that needs to persist across recycling. For persistent state, lift it to the parent component or use a global state management solution.
+</Warning>
+
+```tsx
+// ✓ Good: State resets when item changes
+const [isExpanded, setIsExpanded] = useRecyclingState(false, [item.id]);
+
+// ✗ Bad: Empty deps means state never resets
+const [isExpanded, setIsExpanded] = useRecyclingState(false, []);
+
+// ✗ Bad: Non-unique dep may not trigger reset
+const [isExpanded, setIsExpanded] = useRecyclingState(false, [item.category]);
+```
+
+## Related Hooks
+
+- [useLayoutState](/api/hooks/use-layout-state) - State management that triggers layout recalculation
+- [useFlashListContext](/api/hooks/use-flash-list-context) - Access FlashList context

@@ -1,0 +1,294 @@
+---
+title: Layout & Styling Props
+description: Props for controlling layout, columns, orientation, and styling in FlashList
+---
+
+## Layout Configuration
+
+<ParamField path="horizontal" type="boolean | null | undefined" default="false">
+  If true, renders items next to each other horizontally instead of stacked vertically.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    horizontal
+    estimatedItemSize={100}
+  />
+  ```
+</ParamField>
+
+<ParamField path="numColumns" type="number" default="1">
+  Multiple columns can only be rendered with `horizontal={false}` and will zig-zag like a `flexWrap` layout. Items should all be the same height - masonry layouts are not supported (except on New Architecture with `masonry` prop).
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    numColumns={2}
+    estimatedItemSize={150}
+  />
+  ```
+
+  <Note>
+    For masonry layouts with varying item heights, use the `masonry` prop (New Architecture only).
+  </Note>
+</ParamField>
+
+<ParamField path="masonry" type="boolean" default="false">
+  <Badge text="New Architecture Only" />
+
+  Enable masonry layout for grid layouts with varying item heights.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    numColumns={2}
+    masonry
+    estimatedItemSize={150}
+  />
+  ```
+</ParamField>
+
+<ParamField path="optimizeItemArrangement" type="boolean" default="false">
+  <Badge text="New Architecture Only" />
+
+  If enabled, MasonryFlashList will try to reduce difference in column height by modifying item order.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    numColumns={2}
+    masonry
+    optimizeItemArrangement
+    estimatedItemSize={150}
+  />
+  ```
+</ParamField>
+
+## Styling Props
+
+<ParamField path="style" type="StyleProp<ViewStyle>">
+  <Badge text="New Architecture Only" />
+
+  Style for the RecyclerView's parent container. Please avoid anything which can mess size of children in this view. For example, margin is okay but padding is not.
+
+  <Note>
+    To enable `overflow: "visible"`, you must also set it on the internal ScrollView via `overrideProps`:
+    ```tsx
+    <FlashList
+      style={{ overflow: "visible" }}
+      overrideProps={{ style: { overflow: "visible" } }}
+    />
+    ```
+  </Note>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    style={{ flex: 1, backgroundColor: '#f5f5f5' }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="contentContainerStyle" type="StyleProp<ViewStyle>">
+  Style for the internal content container (inherited from ScrollView).
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    contentContainerStyle={{ paddingHorizontal: 16 }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="overrideProps" type="OverrideProps">
+  Allows overriding internal ScrollView props. Props provided here are spread onto the internal ScrollView after all other props, so they take highest priority.
+
+  This can be useful for cases where you need to set a style on the ScrollView itself rather than the outer container. For example, to enable visible overflow you can combine this with the `style` prop.
+
+  <Warning>
+    Use with caution — overriding internal props may interfere with FlashList's layout and recycling behavior.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    style={{ overflow: "visible" }}
+    overrideProps={{
+      style: { overflow: "visible" },
+      showsVerticalScrollIndicator: false,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **Type Definition:**
+  ```typescript
+  interface OverrideProps {
+    initialDrawBatchSize?: number;
+    [key: string]: any;
+  }
+  ```
+</ParamField>
+
+## Sticky Headers
+
+<ParamField path="stickyHeaderIndices" type="number[]">
+  An array of indices marking items that should stick to the top of the screen when scrolling. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    stickyHeaderIndices={[0, 5, 10]}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="stickyHeaderConfig" type="StickyHeaderConfig">
+  Configuration options for sticky headers.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    stickyHeaderIndices={[0]}
+    stickyHeaderConfig={{
+      useNativeDriver: true,
+      offset: 60,
+      hideRelatedCell: false,
+      backdropComponent: <BlurView />,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **Properties:**
+
+  - `useNativeDriver` (boolean, default: `true`): If true, the sticky headers will use native driver for animations
+  - `offset` (number, default: `0`): Offset from the top of the list where sticky headers should stick. Useful when you have a fixed header or navigation bar at the top of your screen
+  - `hideRelatedCell` (boolean, default: `false`): When a sticky header is displayed, the cell associated with it is hidden
+  - `backdropComponent` (React.ComponentType | React.ReactElement): Component to render behind sticky headers (e.g., a backdrop or blur effect). Renders in front of the scroll view content but behind the sticky header itself
+</ParamField>
+
+<ParamField path="onChangeStickyIndex" type="(current: number, previous: number) => void">
+  Callback invoked when the currently displayed sticky header changes. Receives the current sticky header index and the previous sticky header index.
+
+  This is useful for tracking which header is currently stuck at the top while scrolling. The index refers to the position of the item in your data array that's being used as a sticky header.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    stickyHeaderIndices={[0, 10, 20]}
+    onChangeStickyIndex={(current, previous) => {
+      console.log(`Sticky header changed from ${previous} to ${current}`);
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Refresh Control
+
+<ParamField path="onRefresh" type="() => void">
+  If provided, a standard RefreshControl will be added for "Pull to Refresh" functionality. Make sure to also set the `refreshing` prop correctly.
+
+  ```tsx
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchNewData();
+    setRefreshing(false);
+  };
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onRefresh={onRefresh}
+    refreshing={refreshing}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="refreshing" type="boolean | null | undefined" default="false">
+  Set this true while waiting for new data from a refresh.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onRefresh={onRefresh}
+    refreshing={refreshing}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="progressViewOffset" type="number">
+  <Badge text="Android Only" />
+
+  Set this when offset is needed for the loading indicator to show correctly.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onRefresh={onRefresh}
+    refreshing={refreshing}
+    progressViewOffset={100}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Lifecycle Callbacks
+
+<ParamField path="onLoad" type="(info: { elapsedTimeInMs: number }) => void">
+  This event is raised once the list has drawn items on the screen. It also reports `elapsedTimeInMs` which is the time it took to draw the items.
+
+  This is required because FlashList doesn't render items in the first cycle. Items are drawn after it measures itself at the end of first render. If you're using ListEmptyComponent, this event is raised as soon as ListEmptyComponent is rendered.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onLoad={({ elapsedTimeInMs }) => {
+      console.log(`List loaded in ${elapsedTimeInMs}ms`);
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onCommitLayoutEffect" type="() => void">
+  <Badge text="New Architecture Only" />
+
+  Called when the layout is committed. Can be used to measure list.
+
+  <Warning>
+    Doing setState inside the callback can lead to infinite loops. Make sure FlashList's props are memoized.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onCommitLayoutEffect={() => {
+      console.log('Layout committed');
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>

@@ -1,0 +1,294 @@
+---
+title: Viewability Props
+description: Props for tracking which items are visible on screen in FlashList
+---
+
+## Viewability Tracking
+
+<ParamField path="onViewableItemsChanged" type="(info: ViewabilityInfo<TItem>) => void">
+  Called when the viewability of rows changes, as defined by the `viewabilityConfig` prop.
+
+  Array of `changed` includes `ViewToken`s for both visible and non-visible items. You can use the `isViewable` flag to filter the items.
+
+  If you are tracking the time a view becomes (non-)visible, use the `timestamp` property. We make no guarantees that in the future viewability callbacks will be invoked as soon as they happen - for example, they might be deferred until JS thread is less busy.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onViewableItemsChanged={({ viewableItems, changed }) => {
+      console.log('Viewable items:', viewableItems);
+      console.log('Changed items:', changed);
+      
+      // Track visible items
+      const visibleIds = viewableItems
+        .filter(token => token.isViewable)
+        .map(token => token.item.id);
+    }}
+    viewabilityConfig={{
+      itemVisiblePercentThreshold: 50,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **ViewabilityInfo Type:**
+  ```typescript
+  interface ViewabilityInfo<TItem> {
+    viewableItems: ViewToken<TItem>[];
+    changed: ViewToken<TItem>[];
+  }
+  ```
+</ParamField>
+
+<ParamField path="viewabilityConfig" type="ViewabilityConfig | null | undefined">
+  A default configuration for determining whether items are viewable.
+
+  <Warning>
+    Changing `viewabilityConfig` on the fly is not supported.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onViewableItemsChanged={handleViewableItemsChanged}
+    viewabilityConfig={{
+      itemVisiblePercentThreshold: 50,
+      minimumViewTime: 500,
+      waitForInteraction: true,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **ViewabilityConfig Properties:**
+
+  - `itemVisiblePercentThreshold` (number): Percent of item that must be visible for a partially occluded item to count as "viewable", 0-100. Fully visible items are always considered viewable. A value of 0 means that a single pixel in the viewport makes the item viewable, and a value of 100 means that an item must be either entirely visible or cover the entire viewport to count as viewable
+  - `minimumViewTime` (number): Minimum amount of time (in milliseconds) that an item must be physically viewable before the viewability callback will be fired
+  - `viewAreaCoveragePercentThreshold` (number): Percent of viewport that must be covered for a partially occluded item to count as "viewable", 0-100
+  - `waitForInteraction` (boolean): Nothing is considered viewable until the user scrolls or `recordInteraction` is called after render
+
+  **Example - Track items visible for at least 1 second:**
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onViewableItemsChanged={({ viewableItems }) => {
+      // Only fires for items visible for 1+ second
+      viewableItems.forEach(token => {
+        if (token.isViewable) {
+          analytics.track('item_viewed', { id: token.item.id });
+        }
+      });
+    }}
+    viewabilityConfig={{
+      itemVisiblePercentThreshold: 50,
+      minimumViewTime: 1000,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="viewabilityConfigCallbackPairs" type="ViewabilityConfigCallbackPair<TItem>[]">
+  List of `ViewabilityConfig`/`onViewableItemsChanged` pairs. A specific `onViewableItemsChanged` will be called when its corresponding `ViewabilityConfig`'s conditions are met.
+
+  This allows you to track multiple viewability conditions simultaneously.
+
+  ```tsx
+  const viewabilityConfigCallbackPairs = useRef([
+    {
+      viewabilityConfig: {
+        itemVisiblePercentThreshold: 50,
+      },
+      onViewableItemsChanged: ({ viewableItems }) => {
+        console.log('50% visible:', viewableItems);
+      },
+    },
+    {
+      viewabilityConfig: {
+        itemVisiblePercentThreshold: 100,
+      },
+      onViewableItemsChanged: ({ viewableItems }) => {
+        console.log('100% visible:', viewableItems);
+      },
+    },
+  ]);
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+    estimatedItemSize={50}
+  />
+  ```
+
+  <Note>
+    The `viewabilityConfigCallbackPairs` value should be memoized or created outside of render to avoid unnecessary re-renders.
+  </Note>
+</ParamField>
+
+## Type Reference
+
+### ViewToken\<TItem\>
+
+Represents the viewability state of an item:
+
+```typescript
+interface ViewToken<T> {
+  item: T;
+  key: string;
+  index: number | null;
+  isViewable: boolean;
+  timestamp: number;
+}
+```
+
+**Properties:**
+- `item`: The actual data item from your `data` array
+- `key`: Unique key for the item (from `keyExtractor`)
+- `index`: Index of the item in the data array
+- `isViewable`: Whether the item is currently viewable
+- `timestamp`: Timestamp (in milliseconds) when the viewability state changed
+
+### ViewabilityConfig
+
+Configuration for determining viewability:
+
+```typescript
+interface ViewabilityConfig {
+  itemVisiblePercentThreshold?: number;
+  minimumViewTime?: number;
+  viewAreaCoveragePercentThreshold?: number;
+  waitForInteraction?: boolean;
+}
+```
+
+### ViewabilityConfigCallbackPair\<TItem\>
+
+Pairs a viewability configuration with its callback:
+
+```typescript
+interface ViewabilityConfigCallbackPair<TItem> {
+  viewabilityConfig: ViewabilityConfig;
+  onViewableItemsChanged: ((info: {
+    viewableItems: ViewToken<TItem>[];
+    changed: ViewToken<TItem>[];
+  }) => void) | null;
+}
+```
+
+## Usage Examples
+
+### Track Video Impressions
+
+```tsx
+const VideoList = () => {
+  const handleViewableItemsChanged = useCallback(({ viewableItems }) => {
+    viewableItems.forEach(token => {
+      if (token.isViewable) {
+        // Track impression when video is 75% visible for 2 seconds
+        analytics.trackImpression(token.item.id);
+      }
+    });
+  }, []);
+
+  return (
+    <FlashList
+      data={videos}
+      renderItem={renderVideo}
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={{
+        itemVisiblePercentThreshold: 75,
+        minimumViewTime: 2000,
+      }}
+      estimatedItemSize={300}
+    />
+  );
+};
+```
+
+### Auto-play Videos
+
+```tsx
+const VideoFeed = () => {
+  const [visibleVideoIds, setVisibleVideoIds] = useState<Set<string>>(new Set());
+
+  const handleViewableItemsChanged = useCallback(({ changed }) => {
+    setVisibleVideoIds(prev => {
+      const next = new Set(prev);
+      changed.forEach(token => {
+        if (token.isViewable) {
+          next.add(token.item.id);
+        } else {
+          next.delete(token.item.id);
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  const renderItem = useCallback(({ item }) => (
+    <VideoItem
+      video={item}
+      shouldPlay={visibleVideoIds.has(item.id)}
+    />
+  ), [visibleVideoIds]);
+
+  return (
+    <FlashList
+      data={videos}
+      renderItem={renderItem}
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={{
+        itemVisiblePercentThreshold: 80,
+      }}
+      estimatedItemSize={400}
+    />
+  );
+};
+```
+
+### Multiple Viewability Thresholds
+
+```tsx
+const ProductList = () => {
+  const viewabilityConfigCallbackPairs = useRef([
+    {
+      // Track quick views (any visibility)
+      viewabilityConfig: { itemVisiblePercentThreshold: 10 },
+      onViewableItemsChanged: ({ viewableItems }) => {
+        viewableItems.forEach(token => {
+          if (token.isViewable) {
+            analytics.track('product_quick_view', { id: token.item.id });
+          }
+        });
+      },
+    },
+    {
+      // Track engaged views (50% visible for 1 second)
+      viewabilityConfig: {
+        itemVisiblePercentThreshold: 50,
+        minimumViewTime: 1000,
+      },
+      onViewableItemsChanged: ({ viewableItems }) => {
+        viewableItems.forEach(token => {
+          if (token.isViewable) {
+            analytics.track('product_engaged_view', { id: token.item.id });
+          }
+        });
+      },
+    },
+  ]);
+
+  return (
+    <FlashList
+      data={products}
+      renderItem={renderProduct}
+      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+      estimatedItemSize={200}
+    />
+  );
+};
+```

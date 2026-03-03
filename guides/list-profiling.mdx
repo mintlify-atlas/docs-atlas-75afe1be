@@ -1,0 +1,469 @@
+---
+title: Performance Profiling
+description: Measure and optimize your FlashList performance
+icon: gauge-high
+---
+
+The `useBenchmark` hook provides a comprehensive way to measure and analyze FlashList performance. It automatically scrolls through your list while collecting metrics and provides actionable suggestions for optimization.
+
+## Quick Start
+
+Add performance profiling to any FlashList in just a few lines:
+
+```tsx
+import { useRef } from "react";
+import { FlashList, useBenchmark } from "@shopify/flash-list";
+
+function MyList() {
+  const flashListRef = useRef<FlashList<MyDataType>>(null);
+
+  // Benchmark runs automatically 3 seconds after mount
+  useBenchmark(flashListRef, (result) => {
+    console.log("Benchmark complete:", result.formattedString);
+  });
+
+  return <FlashList ref={flashListRef} data={data} renderItem={renderItem} />;
+}
+```
+
+<Note>
+By default, the benchmark starts automatically 3 seconds after the component mounts. This gives the list time to settle before measuring performance.
+</Note>
+
+## Manual Control
+
+For production apps or better control over when benchmarks run, use manual mode:
+
+```tsx
+import { useRef } from "react";
+import { View, Button, Alert } from "react-native";
+import { FlashList, useBenchmark } from "@shopify/flash-list";
+
+function MyList() {
+  const flashListRef = useRef<FlashList<MyDataType>>(null);
+
+  const { startBenchmark, isBenchmarkRunning } = useBenchmark(
+    flashListRef,
+    (result) => {
+      if (!result.interrupted) {
+        Alert.alert("Benchmark Complete", result.formattedString);
+      }
+    },
+    {
+      startManually: true,
+      repeatCount: 3,
+      speedMultiplier: 1.5,
+    }
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Button
+        title={isBenchmarkRunning ? "Running..." : "Start Benchmark"}
+        onPress={startBenchmark}
+        disabled={isBenchmarkRunning}
+      />
+      <FlashList ref={flashListRef} data={data} renderItem={renderItem} />
+    </View>
+  );
+}
+```
+
+## Configuration Options
+
+Customize benchmark behavior with these parameters:
+
+```tsx
+interface BenchmarkParams {
+  startDelayInMs?: number;      // Delay before auto-start (default: 3000)
+  speedMultiplier?: number;      // Scroll speed multiplier (default: 1)
+  repeatCount?: number;          // Number of runs (default: 1)
+  startManually?: boolean;       // Disable auto-start (default: false)
+}
+```
+
+<Tabs>
+  <Tab title="startDelayInMs">
+    Control when the benchmark starts automatically:
+
+    ```tsx
+    useBenchmark(flashListRef, callback, {
+      startDelayInMs: 5000, // Wait 5 seconds
+    });
+    ```
+  </Tab>
+  <Tab title="speedMultiplier">
+    Adjust scroll speed to simulate different user behaviors:
+
+    ```tsx
+    useBenchmark(flashListRef, callback, {
+      speedMultiplier: 2.0, // 2x faster scrolling
+    });
+    ```
+  </Tab>
+  <Tab title="repeatCount">
+    Run multiple iterations for more accurate averages:
+
+    ```tsx
+    useBenchmark(flashListRef, callback, {
+      repeatCount: 5, // Run 5 times and average
+    });
+    ```
+  </Tab>
+  <Tab title="startManually">
+    Prevent automatic start and control it yourself:
+
+    ```tsx
+    const { startBenchmark } = useBenchmark(flashListRef, callback, {
+      startManually: true,
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Understanding Results
+
+The benchmark returns detailed performance metrics:
+
+```tsx
+interface BenchmarkResult {
+  js?: {
+    averageFPS: number;  // Average JavaScript FPS
+    minFPS: number;      // Lowest FPS recorded
+    maxFPS: number;      // Highest FPS recorded
+  };
+  interrupted: boolean;  // Was benchmark cancelled?
+  suggestions: string[]; // Performance improvement tips
+  formattedString?: string; // Human-readable summary
+}
+```
+
+### What the Metrics Mean
+
+<CardGroup cols={3}>
+  <Card title="Average FPS" icon="chart-line">
+    The mean frame rate during scrolling. Target: **50+ FPS**
+  </Card>
+  <Card title="Min FPS" icon="arrow-down">
+    The worst frame rate encountered. Watch for drops below **30 FPS**
+  </Card>
+  <Card title="Max FPS" icon="arrow-up">
+    The best frame rate achieved. Usually **60 FPS** on most devices
+  </Card>
+</CardGroup>
+
+## Interpreting Performance
+
+<Steps>
+  <Step title="Good Performance">
+    **Average FPS: 50+**
+    
+    Your list performs excellently! Users will experience smooth scrolling even with fast gestures.
+
+    ```txt
+    Results:
+    JS FPS: Avg: 58 | Min: 52 | Max: 60
+    ```
+  </Step>
+
+  <Step title="Acceptable Performance">
+    **Average FPS: 35-50**
+    
+    Performance is acceptable but could be improved. Users may notice slight stuttering during fast scrolling.
+
+    ```txt
+    Results:
+    JS FPS: Avg: 42 | Min: 35 | Max: 58
+    
+    Suggestions:
+    1. Your average JS FPS is low. This can indicate that your 
+       components are doing too much work...
+    ```
+  </Step>
+
+  <Step title="Poor Performance">
+    **Average FPS: Below 35**
+    
+    Scrolling will feel janky. Immediate optimization needed.
+
+    ```txt
+    Results:
+    JS FPS: Avg: 28 | Min: 18 | Max: 42
+    
+    Suggestions:
+    1. Your average JS FPS is low. This can indicate that your 
+       components are doing too much work. Try to optimize your 
+       components and reduce re-renders if any.
+    2. Data count is low. Try to increase it to a large number 
+       (e.g 200) using the 'useDataMultiplier' hook.
+    ```
+  </Step>
+</Steps>
+
+## Complete Example
+
+```tsx
+import React, { useRef, useState } from "react";
+import { View, Text, Button, StyleSheet, Alert } from "react-native";
+import { FlashList, FlashListRef, useBenchmark } from "@shopify/flash-list";
+
+interface DataItem {
+  id: string;
+  title: string;
+  value: number;
+}
+
+const generateData = (count: number): DataItem[] => {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `item-${index}`,
+    title: `Item ${index}`,
+    value: Math.floor(Math.random() * 100),
+  }));
+};
+
+const BenchmarkExample = () => {
+  const flashListRef = useRef<FlashListRef<DataItem>>(null);
+  const [data] = useState(() => generateData(1000));
+  const [benchmarkResult, setBenchmarkResult] = useState<string>("");
+
+  const { startBenchmark, isBenchmarkRunning } = useBenchmark(
+    flashListRef,
+    (result) => {
+      if (!result.interrupted) {
+        setBenchmarkResult(result.formattedString || "No results");
+        Alert.alert("Benchmark Complete", result.formattedString);
+      }
+    },
+    {
+      startManually: true,
+      repeatCount: 3,
+      speedMultiplier: 1.5,
+    }
+  );
+
+  const renderItem = ({ item }: { item: DataItem }) => (
+    <View style={styles.item}>
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.value}>Value: {item.value}</Text>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Performance Benchmark</Text>
+        <Button
+          title={isBenchmarkRunning ? "Running..." : "Start Benchmark"}
+          onPress={startBenchmark}
+          disabled={isBenchmarkRunning}
+        />
+      </View>
+
+      <FlashList
+        ref={flashListRef}
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        estimatedItemSize={70}
+      />
+
+      {benchmarkResult ? (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultText}>{benchmarkResult}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    padding: 16,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  headerText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  item: {
+    backgroundColor: "white",
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  value: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  resultContainer: {
+    padding: 16,
+    backgroundColor: "#e8f5e9",
+    borderTopWidth: 1,
+    borderTopColor: "#4caf50",
+  },
+  resultText: {
+    fontSize: 12,
+    fontFamily: "monospace",
+    color: "#2e7d32",
+  },
+});
+
+export default BenchmarkExample;
+```
+
+## Automated Suggestions
+
+The benchmark automatically provides actionable feedback:
+
+<AccordionGroup>
+  <Accordion title="Low JS FPS (< 35)">
+    **Problem**: Components are doing too much work on the JavaScript thread.
+
+    **Solutions**:
+    - Optimize `renderItem` - remove heavy computations
+    - Memoize components with `React.memo`
+    - Reduce state updates and re-renders
+    - Move animations to the UI thread with Reanimated
+    - Simplify component tree structure
+
+    ```tsx
+    // Before
+    const renderItem = ({ item }) => (
+      <View>
+        <ExpensiveComponent data={item} />
+      </View>
+    );
+
+    // After
+    const MemoizedItem = React.memo(ExpensiveComponent);
+    const renderItem = ({ item }) => (
+      <View>
+        <MemoizedItem data={item} />
+      </View>
+    );
+    ```
+  </Accordion>
+
+  <Accordion title="Small Dataset (< 200 items)">
+    **Problem**: Testing with too few items doesn't reflect real-world performance.
+
+    **Solutions**:
+    - Test with realistic data sizes (200+ items)
+    - Use the `useDataMultiplier` hook for testing
+
+    ```tsx
+    import { useDataMultiplier } from "@shopify/flash-list";
+
+    const multipliedData = useDataMultiplier(originalData, 5); // 5x the data
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test with Real Data" icon="database">
+    Use production-like data sizes and complexity. Don't benchmark with 10 items when production has 1000.
+  </Card>
+
+  <Card title="Run Multiple Iterations" icon="rotate">
+    Use `repeatCount: 3` or higher to average out inconsistencies and get more reliable metrics.
+  </Card>
+
+  <Card title="Test on Target Devices" icon="mobile">
+    Performance varies dramatically between devices. Always test on your minimum supported hardware.
+  </Card>
+
+  <Card title="Benchmark Before/After" icon="code-compare">
+    Run benchmarks before and after optimizations to measure the impact of your changes.
+  </Card>
+
+  <Card title="Vary Scroll Speeds" icon="gauge">
+    Test with different `speedMultiplier` values (0.5x, 1x, 2x) to simulate different user behaviors.
+  </Card>
+
+  <Card title="Consider User Scenarios" icon="users">
+    Think about how your users actually scroll. Fast scrollers need different optimization than casual browsers.
+  </Card>
+</CardGroup>
+
+## Integration with CI/CD
+
+Automate performance testing in your build pipeline:
+
+```tsx
+import { renderHook } from "@testing-library/react-hooks";
+import { useBenchmark } from "@shopify/flash-list";
+
+describe("Performance Tests", () => {
+  it("maintains 45+ FPS during scrolling", async () => {
+    const listRef = createRef<FlashList<Item>>();
+    
+    const { result, waitForNextUpdate } = renderHook(() =>
+      useBenchmark(listRef, jest.fn(), {
+        startManually: false,
+        repeatCount: 3,
+      })
+    );
+
+    await waitForNextUpdate();
+
+    const benchmarkResult = result.current;
+    expect(benchmarkResult.js?.averageFPS).toBeGreaterThan(45);
+  });
+});
+```
+
+## Troubleshooting
+
+<Warning>
+**Benchmark won't start?** Ensure:
+1. Your list has data (`data.length > 0`)
+2. You've passed a valid `ref` to FlashList
+3. The FlashList is mounted and visible
+</Warning>
+
+<Note>
+**Inconsistent results?** This is normal! Performance varies based on:
+- Device thermal state (throttling)
+- Other running apps
+- Battery level
+- System updates running in background
+
+Run multiple iterations (`repeatCount: 5`) for more stable results.
+</Note>
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="React DevTools Profiler" icon="chart-line" href="https://react.dev/learn/react-developer-tools">
+    Profile React component render performance
+  </Card>
+  <Card title="Flipper" icon="mobile" href="https://fbflipper.com/">
+    Debug and profile React Native apps
+  </Card>
+  <Card title="Performance Tips" icon="lightbulb" href="/fundamentals/performant-components">
+    Learn optimization techniques
+  </Card>
+  <Card title="Why FlashList" icon="bolt" href="/fundamentals/performant-components">
+    Understand FlashList's architecture
+  </Card>
+</CardGroup>

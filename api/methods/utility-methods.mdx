@@ -1,0 +1,306 @@
+---
+title: Utility Methods
+description: Utility methods for advanced FlashList functionality and optimizations
+---
+
+FlashList provides utility methods for advanced use cases, including layout animations, native access, and interaction tracking.
+
+## Basic Usage
+
+```tsx
+import { useRef } from 'react';
+import { FlashList } from '@shopify/flash-list';
+import { LayoutAnimation } from 'react-native';
+
+function MyComponent() {
+  const listRef = useRef<FlashList<ItemType>>(null);
+
+  const handleDelete = (index: number) => {
+    // Prepare for layout animation
+    listRef.current?.prepareForLayoutAnimationRender();
+    
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setData(data.filter((_, i) => i !== index));
+  };
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+---
+
+## prepareForLayoutAnimationRender
+
+Disables item recycling in preparation for layout animations. Call this before performing layout animations to prevent visual glitches.
+
+```tsx
+listRef.current?.prepareForLayoutAnimationRender();
+```
+
+### Parameters
+
+None
+
+### Returns
+
+`void`
+
+### Examples
+
+```tsx
+import { LayoutAnimation } from 'react-native';
+
+// Before adding items with animation
+const handleAddItem = (newItem) => {
+  listRef.current?.prepareForLayoutAnimationRender();
+  
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  setData([...data, newItem]);
+};
+
+// Before removing items with animation
+const handleRemoveItem = (index) => {
+  listRef.current?.prepareForLayoutAnimationRender();
+  
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+  setData(data.filter((_, i) => i !== index));
+};
+
+// Before reordering items
+const handleReorder = (fromIndex, toIndex) => {
+  listRef.current?.prepareForLayoutAnimationRender();
+  
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  const newData = [...data];
+  const [removed] = newData.splice(fromIndex, 1);
+  newData.splice(toIndex, 0, removed);
+  setData(newData);
+};
+```
+
+### When to Use
+
+- Before adding or removing items with `LayoutAnimation`
+- Before reordering items with animations
+- Before any operation that changes item positions with animation
+- When using React Native's `LayoutAnimation` API
+
+### Important Notes
+
+<Warning>
+  Call this method **before** configuring the `LayoutAnimation`, not after. The method temporarily disables recycling to ensure smooth animations.
+</Warning>
+
+<Note>
+  After the animation completes, FlashList automatically re-enables recycling. You don't need to manually reset it.
+</Note>
+
+---
+
+## getScrollableNode
+
+Returns the underlying scrollable node. Primarily used for platform-specific integrations and advanced use cases.
+
+```tsx
+const scrollableNode = listRef.current?.getScrollableNode();
+```
+
+### Parameters
+
+None
+
+### Returns
+
+<ResponseField name="node" type="any">
+  The underlying scrollable node. Type varies by platform.
+</ResponseField>
+
+### Examples
+
+```tsx
+// Get the scrollable node for platform-specific integration
+const scrollableNode = listRef.current?.getScrollableNode();
+
+// Use with third-party libraries that need native references
+import { useScrollToTop } from '@react-navigation/native';
+
+function MyScreen() {
+  const listRef = useRef<FlashList<ItemType>>(null);
+  
+  useScrollToTop(
+    useRef({
+      scrollToTop: () => listRef.current?.scrollToOffset({ offset: 0, animated: true })
+    })
+  );
+  
+  return <FlashList ref={listRef} {...props} />;
+}
+
+// Measure native layout (advanced)
+const node = listRef.current?.getScrollableNode();
+if (node) {
+  node.measure((x, y, width, height, pageX, pageY) => {
+    console.log('Layout:', { x, y, width, height });
+  });
+}
+```
+
+### When to Use
+
+- Integrating with third-party libraries that require native references
+- Platform-specific scroll handling
+- Advanced native measurements and calculations
+- Custom scroll behaviors that require native access
+
+<Warning>
+  This is an advanced method. Avoid using it unless you specifically need native-level access. Prefer higher-level methods like `scrollToIndex` or `scrollToOffset` for most use cases.
+</Warning>
+
+---
+
+## recordInteraction
+
+Marks the list as having been interacted with. Call this method when you want to manually trigger viewability calculations without an actual scroll event.
+
+```tsx
+listRef.current?.recordInteraction();
+```
+
+### Parameters
+
+None
+
+### Returns
+
+`void`
+
+### Examples
+
+```tsx
+// After programmatically scrolling
+const handleJumpToItem = async (index: number) => {
+  await listRef.current?.scrollToIndex({ index, animated: false });
+  
+  // Trigger viewability callback
+  listRef.current?.recordInteraction();
+};
+
+// After changing data that affects viewability
+const handleFilter = (filterFn) => {
+  const filteredData = data.filter(filterFn);
+  setData(filteredData);
+  
+  // Ensure viewability is recalculated
+  setTimeout(() => {
+    listRef.current?.recordInteraction();
+  }, 0);
+};
+
+// After manually changing visibility
+const handleToggleExpand = (index: number) => {
+  setData(data.map((item, i) => 
+    i === index ? { ...item, expanded: !item.expanded } : item
+  ));
+  
+  // Trigger viewability update
+  requestAnimationFrame(() => {
+    listRef.current?.recordInteraction();
+  });
+};
+```
+
+### When to Use
+
+- After programmatic scrolls without animation
+- After data changes that affect item visibility
+- When you need to force `onViewableItemsChanged` to fire
+- After expanding/collapsing items that change layout
+- In custom scroll implementations
+
+### Related Methods
+
+- [`recomputeViewableItems()`](/api/methods/utility-methods#recomputeviewableitems) - Forces recalculation of viewable items
+- [`onViewableItemsChanged`](/api/props/viewability#onviewableitemschanged) - Callback that fires when viewable items change
+
+<Note>
+  This method is useful when FlashList's automatic viewability detection doesn't capture your use case. It marks the list as "interacted with" which triggers the viewability calculation.
+</Note>
+
+---
+
+## Additional Utility Methods
+
+FlashList provides several other utility methods for advanced use cases:
+
+### getFirstItemOffset
+
+Returns the offset of the first item (accounts for header/padding).
+
+```tsx
+const offset = listRef.current?.getFirstItemOffset();
+```
+
+### getScrollableNode
+
+Returns the underlying scrollable node reference (documented above).
+
+### flashScrollIndicators
+
+Makes the scroll indicators flash momentarily.
+
+```tsx
+listRef.current?.flashScrollIndicators();
+```
+
+Useful to indicate to users that there is more content to scroll.
+
+### recomputeViewableItems
+
+Forces recalculation of viewable items (viewability callbacks).
+
+```tsx
+listRef.current?.recomputeViewableItems();
+```
+
+Call this after any operation that might affect item visibility but doesn't trigger a scroll event.
+
+### clearLayoutCacheOnUpdate
+
+Clears the layout cache on the next update.
+
+```tsx
+listRef.current?.clearLayoutCacheOnUpdate();
+```
+
+Useful for carousels when orientation changes. Call this before the render, not in an effect.
+
+---
+
+## TypeScript Types
+
+FlashList provides TypeScript types for all methods:
+
+```tsx
+import { FlashList } from '@shopify/flash-list';
+import type { FlashListRef } from '@shopify/flash-list';
+
+interface MyItem {
+  id: string;
+  title: string;
+}
+
+function MyComponent() {
+  const listRef = useRef<FlashList<MyItem>>(null);
+  // or
+  const listRef2 = useRef<FlashListRef<MyItem>>(null);
+  
+  return <FlashList ref={listRef} {...props} />;
+}
+```

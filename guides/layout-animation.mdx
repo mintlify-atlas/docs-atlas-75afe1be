@@ -1,0 +1,396 @@
+---
+title: Layout Animations
+description: Animate item insertions, deletions, and reordering
+icon: wand-magic-sparkles
+---
+
+React Native's `LayoutAnimation` API provides a simple way to animate layout changes. FlashList supports `LayoutAnimation`, but requires a specific setup to work correctly with view recycling.
+
+<Warning>
+`LayoutAnimation` is experimental on Android and may have stability issues.
+</Warning>
+
+## Quick Start
+
+To use `LayoutAnimation` with FlashList, you must call `prepareForLayoutAnimationRender()` before triggering the animation:
+
+```tsx
+import React, { useRef, useState } from "react";
+import { View, Text, Pressable, LayoutAnimation } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+
+const AnimatedList = () => {
+  const [data, setData] = useState([1, 2, 3, 4, 5]);
+  const listRef = useRef<FlashList<number>>(null);
+
+  const removeItem = (item: number) => {
+    // 1. Update the data
+    setData((current) => current.filter((i) => i !== item));
+    
+    // 2. Prepare FlashList for animation (BEFORE LayoutAnimation.configureNext)
+    listRef.current?.prepareForLayoutAnimationRender();
+    
+    // 3. Configure the animation
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={data}
+      keyExtractor={(item) => item.toString()}
+      renderItem={({ item }) => (
+        <Pressable onPress={() => removeItem(item)}>
+          <View style={{ padding: 20, backgroundColor: "#fff" }}>
+            <Text>Item {item} - Tap to remove</Text>
+          </View>
+        </Pressable>
+      )}
+      estimatedItemSize={60}
+    />
+  );
+};
+```
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Create a ref to your FlashList">
+    Use `useRef` to maintain a reference to your FlashList instance:
+
+    ```tsx
+    import { useRef } from "react";
+    import { FlashList } from "@shopify/flash-list";
+
+    const listRef = useRef<FlashList<YourDataType>>(null);
+
+    <FlashList
+      ref={listRef}
+      // ... other props
+    />
+    ```
+  </Step>
+
+  <Step title="Add keyExtractor prop">
+    The `keyExtractor` prop is **required** for animations to work properly:
+
+    ```tsx
+    <FlashList
+      ref={listRef}
+      data={data}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={renderItem}
+    />
+    ```
+
+    <Warning>
+    Without `keyExtractor`, animations will not work correctly because FlashList cannot track which items have been added or removed.
+    </Warning>
+  </Step>
+
+  <Step title="Call prepareForLayoutAnimationRender">
+    Before calling `LayoutAnimation.configureNext`, call `prepareForLayoutAnimationRender()`:
+
+    ```tsx
+    const addItem = () => {
+      setData([...data, newItem]);
+      listRef.current?.prepareForLayoutAnimationRender();
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    };
+    ```
+
+    <Note>
+    This method must be called **before** `LayoutAnimation.configureNext` for the animation to render properly.
+    </Note>
+  </Step>
+
+  <Step title="Configure your animation">
+    Use any of React Native's `LayoutAnimation` presets or create custom configurations:
+
+    ```tsx
+    // Using presets
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+
+    // Custom configuration
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.spring,
+        springDamping: 0.7,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Removing Items
+
+```tsx
+import React, { useRef, useState } from "react";
+import { View, Text, Pressable, LayoutAnimation, StyleSheet } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+const TodoList = () => {
+  const [todos, setTodos] = useState<TodoItem[]>([
+    { id: "1", text: "Buy groceries", completed: false },
+    { id: "2", text: "Walk the dog", completed: false },
+    { id: "3", text: "Write documentation", completed: false },
+  ]);
+  const listRef = useRef<FlashList<TodoItem>>(null);
+
+  const removeTodo = (id: string) => {
+    setTodos((current) => current.filter((todo) => todo.id !== id));
+    listRef.current?.prepareForLayoutAnimationRender();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={todos}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={styles.todoItem}>
+          <Text style={styles.todoText}>{item.text}</Text>
+          <Pressable
+            style={styles.deleteButton}
+            onPress={() => removeTodo(item.id)}
+          >
+            <Text style={styles.deleteText}>Delete</Text>
+          </Pressable>
+        </View>
+      )}
+      estimatedItemSize={70}
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  todoItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  todoText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  deleteButton: {
+    backgroundColor: "#ff5252",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  deleteText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+});
+```
+
+### Adding Items
+
+```tsx
+const addItem = () => {
+  const newItem = {
+    id: Date.now().toString(),
+    text: "New todo item",
+    completed: false,
+  };
+  
+  setTodos((current) => [newItem, ...current]);
+  listRef.current?.prepareForLayoutAnimationRender();
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+};
+```
+
+### Reordering Items
+
+```tsx
+const moveItemToTop = (id: string) => {
+  setTodos((current) => {
+    const item = current.find((todo) => todo.id === id);
+    if (!item) return current;
+    
+    const filtered = current.filter((todo) => todo.id !== id);
+    return [item, ...filtered];
+  });
+  
+  listRef.current?.prepareForLayoutAnimationRender();
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+};
+```
+
+### Updating Item Properties
+
+```tsx
+const toggleComplete = (id: string) => {
+  setTodos((current) =>
+    current.map((todo) =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    )
+  );
+  
+  listRef.current?.prepareForLayoutAnimationRender();
+  LayoutAnimation.configureNext({
+    duration: 200,
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+  });
+};
+```
+
+## Animation Presets
+
+<Tabs>
+  <Tab title="easeInEaseOut">
+    Smooth acceleration and deceleration. Good for general-purpose animations.
+
+    ```tsx
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    ```
+  </Tab>
+  <Tab title="spring">
+    Bouncy spring animation. Great for playful interactions.
+
+    ```tsx
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    ```
+  </Tab>
+  <Tab title="linear">
+    Constant speed throughout. Best for simple transitions.
+
+    ```tsx
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.linear);
+    ```
+  </Tab>
+</Tabs>
+
+## Custom Animation Configuration
+
+Create sophisticated animations by configuring each phase:
+
+```tsx
+LayoutAnimation.configureNext({
+  duration: 400,
+  create: {
+    type: LayoutAnimation.Types.spring,
+    property: LayoutAnimation.Properties.scaleXY,
+    springDamping: 0.7,
+  },
+  update: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+  },
+  delete: {
+    type: LayoutAnimation.Types.easeOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+});
+```
+
+### Available Types
+
+- `LayoutAnimation.Types.spring`
+- `LayoutAnimation.Types.linear`
+- `LayoutAnimation.Types.easeInEaseOut`
+- `LayoutAnimation.Types.easeIn`
+- `LayoutAnimation.Types.easeOut`
+
+### Available Properties
+
+- `LayoutAnimation.Properties.opacity`
+- `LayoutAnimation.Properties.scaleX`
+- `LayoutAnimation.Properties.scaleY`
+- `LayoutAnimation.Properties.scaleXY`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always use keyExtractor" icon="key">
+    The `keyExtractor` prop is essential for FlashList to track items correctly during animations.
+  </Card>
+  <Card title="Call prepare before configure" icon="1">
+    Always call `prepareForLayoutAnimationRender()` before `LayoutAnimation.configureNext()`.
+  </Card>
+  <Card title="Test on Android" icon="android">
+    LayoutAnimation is experimental on Android - test thoroughly on actual devices.
+  </Card>
+  <Card title="Keep animations short" icon="clock">
+    Animations between 200-400ms feel responsive without being sluggish.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Animations not working at all">
+    Make sure you've:
+    1. Added a `ref` to your FlashList
+    2. Included the `keyExtractor` prop
+    3. Called `prepareForLayoutAnimationRender()` before `LayoutAnimation.configureNext()`
+
+    ```tsx
+    // Enable LayoutAnimation on Android (add to App.tsx)
+    import { UIManager, Platform } from 'react-native';
+
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Janky or stuttering animations">
+    This usually indicates your `renderItem` components are doing too much work. Try:
+    - Memoizing your render components
+    - Simplifying component structure
+    - Reducing the number of animated properties
+  </Accordion>
+
+  <Accordion title="Items jumping or flickering">
+    Ensure your `keyExtractor` returns stable, unique keys. Keys should not change between renders for the same item.
+  </Accordion>
+
+  <Accordion title="Android-specific issues">
+    LayoutAnimation is experimental on Android. If you experience crashes or visual glitches, consider using React Native Reanimated instead.
+  </Accordion>
+</AccordionGroup>
+
+## Alternative: React Native Reanimated
+
+For more complex animations or better Android support, consider using React Native Reanimated:
+
+<Card title="React Native Reanimated Guide" icon="link" href="/guides/reanimated">
+  Learn how to use Reanimated with FlashList for more powerful animations
+</Card>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Reanimated Integration" icon="wand-magic-sparkles" href="/guides/reanimated">
+    Use Reanimated for more advanced animations
+  </Card>
+  <Card title="Performance Tips" icon="gauge-high" href="/fundamentals/performant-components">
+    Optimize your list for smooth animations
+  </Card>
+</CardGroup>

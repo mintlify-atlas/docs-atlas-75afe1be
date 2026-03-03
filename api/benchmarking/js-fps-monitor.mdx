@@ -1,0 +1,605 @@
+---
+title: "JSFPSMonitor"
+description: "Utility class for monitoring JavaScript thread performance"
+---
+
+## Overview
+
+`JSFPSMonitor` is a low-level utility class that monitors JavaScript thread performance by tracking frames per second (FPS). It provides precise measurements of average, minimum, and maximum FPS over a tracking period.
+
+## Import
+
+```tsx
+import { JSFPSMonitor } from "@shopify/flash-list";
+```
+
+## Usage
+
+```typescript
+const monitor = new JSFPSMonitor();
+monitor.startTracking();
+
+// ... perform operations to measure ...
+
+const result = monitor.stopAndGetData();
+console.log(`Average FPS: ${result.averageFPS}`);
+```
+
+## Constructor
+
+```typescript
+new JSFPSMonitor()
+```
+
+Creates a new FPS monitor instance. No parameters required.
+
+```tsx
+const monitor = new JSFPSMonitor();
+```
+
+## Methods
+
+### startTracking()
+
+Begins tracking JavaScript thread FPS.
+
+```typescript
+startTracking(): void
+```
+
+**Throws:**
+- Error if tracking is already running
+
+**Example:**
+
+```tsx
+const monitor = new JSFPSMonitor();
+monitor.startTracking();
+
+// Tracking is now active
+```
+
+**Note:** Can only be called once per monitor instance. Create a new instance for subsequent measurements.
+
+### stopAndGetData()
+
+Stops tracking and returns the collected FPS metrics.
+
+```typescript
+stopAndGetData(): JSFPSResult
+```
+
+**Returns:** `JSFPSResult` object with FPS measurements
+
+**Example:**
+
+```tsx
+const result = monitor.stopAndGetData();
+console.log(result);
+// {
+//   averageFPS: 58.5,
+//   minFPS: 45.2,
+//   maxFPS: 60.0
+// }
+```
+
+## JSFPSResult
+
+```typescript
+interface JSFPSResult {
+  minFPS: number;
+  maxFPS: number;
+  averageFPS: number;
+}
+```
+
+### averageFPS
+
+**Type:** `number`
+
+Mean frames per second across the entire tracking period. Calculated as:
+
+```
+averageFPS = totalFrames / totalTimeInSeconds
+```
+
+Rounded to 1 decimal place.
+
+**Interpretation:**
+- **55-60**: Excellent performance
+- **45-55**: Good performance
+- **35-45**: Fair performance
+- **< 35**: Poor performance
+
+### minFPS
+
+**Type:** `number`
+
+Lowest FPS recorded in any 1-second window during tracking.
+
+Rounded to 1 decimal place.
+
+**Use case:** Identifies worst-case performance and bottlenecks.
+
+```tsx
+if (result.minFPS < 30) {
+  console.warn("Detected performance bottleneck");
+}
+```
+
+### maxFPS
+
+**Type:** `number`
+
+Highest FPS recorded in any 1-second window during tracking.
+
+Rounded to 1 decimal place.
+
+**Use case:** Shows best-case performance when conditions are optimal.
+
+```tsx
+const fpsRange = result.maxFPS - result.minFPS;
+if (fpsRange > 20) {
+  console.warn("Inconsistent performance detected");
+}
+```
+
+## How It Works
+
+### Measurement Technique
+
+`JSFPSMonitor` uses `requestAnimationFrame` to track frames:
+
+1. **Frame Counting**: Increments a counter on each animation frame
+2. **Time Tracking**: Records elapsed time using `Date.now()`
+3. **Average Calculation**: Divides total frames by total elapsed time
+4. **Min/Max Tracking**: Calculates FPS in 1-second windows and tracks extremes
+
+### Time Windows
+
+The monitor uses sliding 1-second windows:
+
+```
+Time:  0s -------- 1s -------- 2s -------- 3s
+FPS:     58         45         60
+                    ↑          ↑
+                   Min        Max
+Average across all time: 54.3
+```
+
+### Precision
+
+All FPS values are rounded to 1 decimal place using the internal `roundToDecimalPlaces` function:
+
+```typescript
+roundToDecimalPlaces(58.47, 1) // Returns 58.5
+```
+
+## Examples
+
+### Basic Measurement
+
+```tsx
+import { JSFPSMonitor } from "@shopify/flash-list";
+
+function measurePerformance() {
+  const monitor = new JSFPSMonitor();
+  monitor.startTracking();
+
+  // Simulate work
+  setTimeout(() => {
+    const result = monitor.stopAndGetData();
+    console.log(`FPS: ${result.averageFPS}`);
+  }, 5000);
+}
+```
+
+### Custom Benchmark Function
+
+```tsx
+import { JSFPSMonitor } from "@shopify/flash-list";
+
+async function benchmarkOperation(
+  operation: () => Promise<void>
+): Promise<JSFPSResult> {
+  const monitor = new JSFPSMonitor();
+  
+  monitor.startTracking();
+  await operation();
+  const result = monitor.stopAndGetData();
+  
+  return result;
+}
+
+// Usage
+const result = await benchmarkOperation(async () => {
+  // Scroll through list
+  for (let i = 0; i < 100; i++) {
+    await scrollToIndex(i);
+    await wait(50);
+  }
+});
+
+console.log(`Performance: ${result.averageFPS} FPS`);
+```
+
+### Performance Monitoring Hook
+
+```tsx
+import { useRef, useEffect, useState } from "react";
+import { JSFPSMonitor, JSFPSResult } from "@shopify/flash-list";
+
+function usePerformanceMonitor(enabled: boolean) {
+  const monitorRef = useRef<JSFPSMonitor | null>(null);
+  const [fps, setFPS] = useState<JSFPSResult | null>(null);
+
+  useEffect(() => {
+    if (enabled) {
+      const monitor = new JSFPSMonitor();
+      monitorRef.current = monitor;
+      monitor.startTracking();
+
+      return () => {
+        const result = monitor.stopAndGetData();
+        setFPS(result);
+        monitorRef.current = null;
+      };
+    }
+  }, [enabled]);
+
+  return fps;
+}
+
+// Usage
+function MyComponent() {
+  const [monitoring, setMonitoring] = useState(false);
+  const fps = usePerformanceMonitor(monitoring);
+
+  return (
+    <View>
+      <Button
+        title={monitoring ? "Stop Monitoring" : "Start Monitoring"}
+        onPress={() => setMonitoring(!monitoring)}
+      />
+      {fps && (
+        <Text>
+          FPS: Avg {fps.averageFPS} | Min {fps.minFPS} | Max {fps.maxFPS}
+        </Text>
+      )}
+    </View>
+  );
+}
+```
+
+### Continuous FPS Display
+
+```tsx
+import { useEffect, useState } from "react";
+import { View, Text } from "react-native";
+import { JSFPSMonitor } from "@shopify/flash-list";
+
+function FPSCounter() {
+  const [currentFPS, setCurrentFPS] = useState(60);
+
+  useEffect(() => {
+    let monitor = new JSFPSMonitor();
+    monitor.startTracking();
+
+    const interval = setInterval(() => {
+      // Get results and restart monitoring
+      const result = monitor.stopAndGetData();
+      setCurrentFPS(result.averageFPS);
+
+      // Restart with new monitor
+      monitor = new JSFPSMonitor();
+      monitor.startTracking();
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      monitor.stopAndGetData(); // Clean up
+    };
+  }, []);
+
+  const color = currentFPS >= 55 ? "green" : currentFPS >= 35 ? "orange" : "red";
+
+  return (
+    <View style={{ position: "absolute", top: 40, right: 20 }}>
+      <Text style={{ color, fontSize: 18, fontWeight: "bold" }}>
+        {currentFPS} FPS
+      </Text>
+    </View>
+  );
+}
+```
+
+### Comparing Operations
+
+```tsx
+import { JSFPSMonitor } from "@shopify/flash-list";
+
+async function comparePerformance() {
+  // Test Operation A
+  const monitorA = new JSFPSMonitor();
+  monitorA.startTracking();
+  await operationA();
+  const resultA = monitorA.stopAndGetData();
+
+  // Wait between tests
+  await wait(1000);
+
+  // Test Operation B
+  const monitorB = new JSFPSMonitor();
+  monitorB.startTracking();
+  await operationB();
+  const resultB = monitorB.stopAndGetData();
+
+  console.log("Comparison:");
+  console.log(`Operation A: ${resultA.averageFPS} FPS`);
+  console.log(`Operation B: ${resultB.averageFPS} FPS`);
+  
+  const improvement = resultB.averageFPS - resultA.averageFPS;
+  console.log(`Improvement: ${improvement > 0 ? "+" : ""}${improvement.toFixed(1)} FPS`);
+}
+```
+
+### Integration with useBenchmark
+
+```tsx
+import { useRef } from "react";
+import { FlashList, JSFPSMonitor } from "@shopify/flash-list";
+import { autoScroll, Cancellable } from "@shopify/flash-list";
+
+function CustomBenchmark() {
+  const flashListRef = useRef<FlashListRef>(null);
+
+  const runCustomBenchmark = async () => {
+    const monitor = new JSFPSMonitor();
+    const cancellable = new Cancellable();
+
+    monitor.startTracking();
+
+    // Custom scroll pattern
+    await autoScroll(
+      (x, y) => flashListRef.current?.scrollToOffset({ offset: y, animated: false }),
+      0, 0,
+      0, 5000,
+      2, // Speed multiplier
+      cancellable
+    );
+
+    const result = monitor.stopAndGetData();
+    console.log("Custom benchmark results:", result);
+  };
+
+  return (
+    <View>
+      <Button title="Run Custom Benchmark" onPress={runCustomBenchmark} />
+      <FlashList
+        ref={flashListRef}
+        data={data}
+        renderItem={renderItem}
+        estimatedItemSize={100}
+      />
+    </View>
+  );
+}
+```
+
+## Best Practices
+
+### One Monitor Per Measurement
+
+```tsx
+// ✅ Good: New monitor for each measurement
+const monitor1 = new JSFPSMonitor();
+monitor1.startTracking();
+const result1 = monitor1.stopAndGetData();
+
+const monitor2 = new JSFPSMonitor();
+monitor2.startTracking();
+const result2 = monitor2.stopAndGetData();
+```
+
+```tsx
+// ❌ Bad: Reusing monitor (will throw error)
+const monitor = new JSFPSMonitor();
+monitor.startTracking();
+const result1 = monitor.stopAndGetData();
+
+monitor.startTracking(); // ❌ Error: Already running
+```
+
+### Meaningful Duration
+
+```tsx
+// ✅ Good: Measure for at least 2-3 seconds
+monitor.startTracking();
+await performLongOperation(); // 3+ seconds
+const result = monitor.stopAndGetData();
+```
+
+```tsx
+// ❌ Bad: Too short to be meaningful
+monitor.startTracking();
+await wait(100); // Only 100ms
+const result = monitor.stopAndGetData(); // Unreliable
+```
+
+### Always Stop Tracking
+
+```tsx
+// ✅ Good: Guaranteed cleanup
+useEffect(() => {
+  const monitor = new JSFPSMonitor();
+  monitor.startTracking();
+
+  return () => {
+    monitor.stopAndGetData(); // Cleanup on unmount
+  };
+}, []);
+```
+
+```tsx
+// ❌ Bad: No cleanup
+const monitor = new JSFPSMonitor();
+monitor.startTracking();
+// Never stopped - continues tracking indefinitely
+```
+
+## Understanding Results
+
+### FPS Thresholds
+
+```tsx
+function interpretFPS(result: JSFPSResult) {
+  if (result.averageFPS >= 55) {
+    return "Excellent - Smooth performance";
+  } else if (result.averageFPS >= 45) {
+    return "Good - Acceptable performance";
+  } else if (result.averageFPS >= 35) {
+    return "Fair - Noticeable stutters";
+  } else {
+    return "Poor - Significant lag";
+  }
+}
+```
+
+### Variance Analysis
+
+```tsx
+function analyzeFPSVariance(result: JSFPSResult) {
+  const variance = result.maxFPS - result.minFPS;
+  
+  if (variance < 10) {
+    return "Consistent performance";
+  } else if (variance < 20) {
+    return "Moderate variance - some inconsistency";
+  } else {
+    return "High variance - unstable performance";
+  }
+}
+```
+
+### Performance Classification
+
+```tsx
+function classifyPerformance(result: JSFPSResult): string {
+  const { averageFPS, minFPS, maxFPS } = result;
+  const variance = maxFPS - minFPS;
+
+  if (averageFPS >= 55 && variance < 10) {
+    return "A+ Optimal";
+  } else if (averageFPS >= 45 && variance < 15) {
+    return "B+ Good";
+  } else if (averageFPS >= 35 && variance < 20) {
+    return "C Acceptable";
+  } else if (averageFPS >= 25) {
+    return "D Poor";
+  } else {
+    return "F Critical";
+  }
+}
+```
+
+## Common Issues
+
+### Error: "FPS Monitor already running"
+
+**Cause:** Called `startTracking()` more than once on the same instance.
+
+**Solution:** Create a new monitor instance:
+
+```tsx
+// ✅ Solution
+let monitor = new JSFPSMonitor();
+monitor.startTracking();
+const result1 = monitor.stopAndGetData();
+
+monitor = new JSFPSMonitor(); // New instance
+monitor.startTracking();
+```
+
+### Unexpected High/Low Values
+
+**Possible causes:**
+- Measurement duration too short
+- Other app activity interfering
+- Debug mode vs release mode
+- Background processes
+
+**Solution:** Use longer measurements and release builds.
+
+### Min/Max FPS Same as Average
+
+**Cause:** Measurement period shorter than 1 second.
+
+**Behavior:** When tracking stops before a full second elapses, `minFPS` and `maxFPS` default to `averageFPS`.
+
+```tsx
+// Track for at least 2 seconds for meaningful min/max
+monitor.startTracking();
+await wait(2000);
+const result = monitor.stopAndGetData();
+```
+
+## Use Cases
+
+### Performance Testing
+
+Measure specific operations:
+
+```tsx
+const result = await measurePerformance(async () => {
+  for (let i = 0; i < 100; i++) {
+    updateState(newData);
+    await nextFrame();
+  }
+});
+```
+
+### A/B Testing
+
+Compare implementation variants:
+
+```tsx
+const resultA = await testImplementationA();
+const resultB = await testImplementationB();
+
+if (resultB.averageFPS > resultA.averageFPS) {
+  console.log("Implementation B is faster");
+}
+```
+
+### Regression Detection
+
+Monitor performance over time:
+
+```tsx
+const baseline = 55; // Known good FPS
+
+if (result.averageFPS < baseline - 5) {
+  console.error("Performance regression detected!");
+}
+```
+
+### Custom Benchmarking
+
+Build specialized benchmark tools:
+
+```tsx
+class CustomBenchmark {
+  async run(operation: () => Promise<void>): Promise<JSFPSResult> {
+    const monitor = new JSFPSMonitor();
+    monitor.startTracking();
+    await operation();
+    return monitor.stopAndGetData();
+  }
+}
+```
+
+## Related
+
+- [useBenchmark](/api/benchmarking/use-benchmark) - High-level benchmarking hook
+- [Benchmarking Overview](/api/benchmarking/overview) - Complete benchmarking guide
+- [AutoScrollHelper](/api/benchmarking/overview) - Automated scrolling utility

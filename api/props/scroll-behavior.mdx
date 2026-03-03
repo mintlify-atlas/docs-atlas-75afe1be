@@ -1,0 +1,319 @@
+---
+title: Scroll Behavior Props
+description: Props for controlling scroll position, initial state, and scroll behavior in FlashList
+---
+
+## Initial Scroll Position
+
+<ParamField path="initialScrollIndex" type="number | null | undefined">
+  Instead of starting at the top with the first item, start at `initialScrollIndex`.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    initialScrollIndex={10}
+    estimatedItemSize={50}
+  />
+  ```
+
+  <Note>
+    Use `initialScrollIndexParams` to apply additional offset to the initial scroll position.
+  </Note>
+</ParamField>
+
+<ParamField path="initialScrollIndexParams" type="{ viewOffset?: number } | null | undefined">
+  Additional configuration for `initialScrollIndex`. Use `viewOffset` to apply an offset to the initial scroll position as defined by `initialScrollIndex`.
+
+  Ignored if `initialScrollIndex` is not set.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    initialScrollIndex={10}
+    initialScrollIndexParams={{ viewOffset: 20 }}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Scroll Events
+
+<ParamField path="onEndReached" type="() => void">
+  Called once when the scroll position gets within `onEndReachedThreshold` of the rendered content.
+
+  ```tsx
+  const loadMore = () => {
+    console.log('Load more items');
+    fetchMoreItems();
+  };
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onEndReached={loadMore}
+    onEndReachedThreshold={0.5}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onEndReachedThreshold" type="number | null | undefined" default="0.5">
+  How far from the end (in units of visible length of the list) the bottom edge of the list must be from the end of the content to trigger the `onEndReached` callback.
+
+  Thus a value of 0.5 will trigger `onEndReached` when the end of the content is within half the visible length of the list.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onEndReached={loadMore}
+    onEndReachedThreshold={0.8}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onStartReached" type="() => void">
+  <Badge text="New Architecture Only" />
+
+  Called once when the scroll position gets within `onStartReachedThreshold` of the start of the content.
+
+  ```tsx
+  const loadPrevious = () => {
+    console.log('Load previous items');
+    fetchPreviousItems();
+  };
+
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onStartReached={loadPrevious}
+    onStartReachedThreshold={0.2}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onStartReachedThreshold" type="number | null | undefined" default="0.2">
+  <Badge text="New Architecture Only" />
+
+  How far from the start (in units of visible length of the list) the top edge of the list must be from the start of the content to trigger the `onStartReached` callback.
+
+  Thus a value of 0.5 will trigger `onStartReached` when the start of the content is within half the visible length of the list.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onStartReached={loadPrevious}
+    onStartReachedThreshold={0.3}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onScroll" type="(event: NativeSyntheticEvent<NativeScrollEvent>) => void">
+  Fires at most once per frame during scrolling. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onScroll={(event) => {
+      const offsetY = event.nativeEvent.contentOffset.y;
+      console.log('Scroll offset:', offsetY);
+    }}
+    scrollEventThrottle={16}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="scrollEventThrottle" type="number">
+  Controls how often the scroll event will be fired while scrolling (in milliseconds). Inherited from ScrollView. A lower number improves accuracy but may impact performance.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onScroll={handleScroll}
+    scrollEventThrottle={16}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Maintaining Visible Content Position
+
+<ParamField path="maintainVisibleContentPosition" type="MaintainVisibleContentPositionConfig">
+  <Badge text="New Architecture Only" />
+
+  Configuration for maintaining scroll position when content changes. Useful for chat-like interfaces where new messages can be added at the top or bottom.
+
+  ```tsx
+  <FlashList
+    data={messages}
+    renderItem={renderMessage}
+    inverted
+    maintainVisibleContentPosition={{
+      disabled: false,
+      autoscrollToTopThreshold: 100,
+      autoscrollToBottomThreshold: 100,
+      animateAutoScrollToBottom: true,
+      startRenderingFromBottom: true,
+    }}
+    estimatedItemSize={80}
+  />
+  ```
+
+  **Properties:**
+
+  - `disabled` (boolean): maintainVisibleContentPosition is enabled by default. Set to `true` to disable
+  - `autoscrollToTopThreshold` (number): When content is added at the top, automatically scroll to maintain position if the user is within this threshold of the top
+  - `autoscrollToBottomThreshold` (number): When content is added at the bottom, automatically scroll to maintain position if the user is within this threshold of the bottom
+  - `animateAutoScrollToBottom` (boolean, default: `true`): Scroll with animation whenever autoscrollToBottom is triggered
+  - `startRenderingFromBottom` (boolean): If true, initial render will start from the bottom of the list, useful for chat-like interfaces when there are only few messages
+
+  **Chat Example:**
+  ```tsx
+  // Chat interface with new messages at bottom
+  <FlashList
+    data={messages}
+    renderItem={({ item }) => <Message {...item} />}
+    inverted
+    maintainVisibleContentPosition={{
+      autoscrollToBottomThreshold: 50,
+      animateAutoScrollToBottom: true,
+    }}
+    estimatedItemSize={80}
+  />
+  ```
+</ParamField>
+
+## Scroll Indicators
+
+<ParamField path="showsVerticalScrollIndicator" type="boolean" default="true">
+  When true, shows a vertical scroll indicator. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    showsVerticalScrollIndicator={false}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="showsHorizontalScrollIndicator" type="boolean" default="true">
+  When true, shows a horizontal scroll indicator. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    estimatedItemSize={100}
+  />
+  ```
+</ParamField>
+
+## Other ScrollView Props
+
+<ParamField path="inverted" type="boolean">
+  Reverses the direction of scroll. Uses scale transforms of -1. Inherited from ScrollView.
+
+  ```tsx
+  // Useful for chat interfaces
+  <FlashList
+    data={messages}
+    renderItem={renderMessage}
+    inverted
+    estimatedItemSize={80}
+  />
+  ```
+</ParamField>
+
+<ParamField path="bounces" type="boolean" default="true">
+  When true, the scroll view bounces when it reaches the end of the content. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    bounces={false}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="alwaysBounceVertical" type="boolean">
+  When true, the scroll view bounces vertically when it reaches the end even if the content is smaller than the scroll view. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    alwaysBounceVertical={true}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="alwaysBounceHorizontal" type="boolean">
+  When true, the scroll view bounces horizontally when it reaches the end even if the content is smaller than the scroll view. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    horizontal
+    alwaysBounceHorizontal={true}
+    estimatedItemSize={100}
+  />
+  ```
+</ParamField>
+
+<ParamField path="scrollEnabled" type="boolean" default="true">
+  When false, the view cannot be scrolled via touch interaction. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    scrollEnabled={false}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+<ParamField path="pagingEnabled" type="boolean" default="false">
+  When true, the scroll view stops on multiples of the scroll view's size when scrolling. Inherited from ScrollView.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    horizontal
+    pagingEnabled
+    estimatedItemSize={350}
+  />
+  ```
+</ParamField>
+
+## Type Reference
+
+### MaintainVisibleContentPositionConfig
+
+```typescript
+interface MaintainVisibleContentPositionConfig {
+  disabled?: boolean;
+  autoscrollToTopThreshold?: number;
+  autoscrollToBottomThreshold?: number;
+  animateAutoScrollToBottom?: boolean;
+  startRenderingFromBottom?: boolean;
+}
+```

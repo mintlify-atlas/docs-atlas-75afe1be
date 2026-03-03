@@ -1,0 +1,107 @@
+---
+title: Introduction to FlashList
+description: Fast & performant React Native list. No more blank cells.
+---
+
+<img
+  className="block"
+  src="/images/flashlist-hero.png"
+  alt="FlashList Hero"
+/>
+
+## What is FlashList?
+
+FlashList is a high-performance list component for React Native that delivers smooth, 60 FPS scrolling without blank cells. Built by Shopify, it's a drop-in replacement for FlatList that uses view recycling to dramatically improve performance.
+
+**Fast & performant React Native list. No more blank cells.**
+
+Swap from FlatList in seconds. Get instant performance.
+
+<Note>
+  FlashList v2 is designed exclusively for React Native's new architecture. If you're using the old architecture or FlashList v1.x, please refer to the [v1 documentation](https://shopify.github.io/flash-list/docs/1.x/).
+</Note>
+
+## Why FlashList?
+
+<CardGroup cols={2}>
+  <Card title="Superior Performance" icon="rocket">
+    No more blank cells during scrolling. FlashList uses view recycling to ensure smooth 60 FPS performance even with complex item components.
+  </Card>
+  
+  <Card title="Drop-in Replacement" icon="repeat">
+    Simply change the component name from FlatList to FlashList. If you know FlatList, you already know FlashList.
+  </Card>
+  
+  <Card title="No Estimates Required" icon="sparkles">
+    Unlike v1, FlashList v2 automatically handles item sizing without any estimates. Dynamic sizes work out of the box.
+  </Card>
+  
+  <Card title="Advanced Features" icon="layer-group">
+    Built-in support for masonry layouts, sticky headers, multiple item types, and maintaining visible content position.
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### View Recycling
+
+FlashList recycles views instead of destroying them, dramatically reducing memory overhead and eliminating blank cells during scrolling.
+
+### Dynamic Sizing
+
+FlashList v2 is super fast and doesn't need any size estimates. Items can have dynamic heights and widths that change at runtime.
+
+### Multiple Item Types
+
+Optimize performance for lists with different item types using `getItemType`. FlashList maintains separate recycling pools for each type.
+
+### Masonry Layouts
+
+Create Pinterest-style layouts with varying item heights and column spans using the built-in masonry layout support.
+
+### Maintain Visible Content Position
+
+Automatically handles content shifts when adding items at the top or bottom - perfect for chat interfaces and infinite scroll. Enabled by default in v2.
+
+### JS-Only Solution
+
+FlashList v2 is a JavaScript-only solution with no native dependencies, making it easier to maintain while delivering exceptional performance.
+
+## Performance Benefits
+
+<CardGroup cols={3}>
+  <Card title="60 FPS Scrolling" icon="gauge-high">
+    Maintains smooth 60 FPS even with thousands of items and complex components.
+  </Card>
+  
+  <Card title="Reduced Memory" icon="microchip">
+    Efficient view recycling reduces memory footprint by up to 10x compared to FlatList.
+  </Card>
+  
+  <Card title="Lower CPU Usage" icon="bolt">
+    Recycling views instead of creating new ones significantly reduces CPU overhead.
+  </Card>
+</CardGroup>
+
+## Real-World Benefits
+
+- **Reduced frame drops**: Maintains consistent performance during rapid scrolling
+- **Fast initial render**: Optimized for quick first paint
+- **Smoother scrolling**: Predictable performance even with complex item layouts
+- **Better user experience**: No more jarring blank cells or stuttering
+
+<Warning>
+  FlashList v2 requires React Native's new architecture. It will throw an error if you attempt to use it with the old architecture.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install FlashList in your React Native project
+  </Card>
+  
+  <Card title="Quick Start" icon="play" href="/quickstart">
+    Build your first FlashList in minutes
+  </Card>
+</CardGroup>

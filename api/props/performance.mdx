@@ -1,0 +1,355 @@
+---
+title: Performance Props
+description: Props for optimizing performance and controlling rendering behavior in FlashList
+---
+
+## Essential Performance Props
+
+<ParamField path="estimatedItemSize" type="number" required>
+  This is the most important prop for FlashList performance. Provide an approximate size (height for vertical lists, width for horizontal) of your items.
+
+  FlashList uses this to determine how many items to render initially and to estimate scroll position before items are measured.
+
+  <Warning>
+    Inaccurate `estimatedItemSize` can lead to:
+    - Blank space during scrolling
+    - Performance issues
+    - Incorrect scroll position calculations
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    estimatedItemSize={100} // Items are ~100dp tall
+  />
+  ```
+
+  **Best Practices:**
+  - Measure a typical item and use that height/width
+  - Better to slightly overestimate than underestimate
+  - For variable-height items, use an average size
+  - Consider padding and margins in your calculation
+</ParamField>
+
+<ParamField path="drawDistance" type="number">
+  Draw distance for advanced rendering (in dp/px). This controls how much content is rendered outside the visible viewport.
+
+  Higher values mean more items are pre-rendered, reducing blank space during fast scrolling but using more memory.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    estimatedItemSize={50}
+    drawDistance={500} // Render 500dp worth of items beyond viewport
+  />
+  ```
+
+  <Note>
+    Only adjust this if you're experiencing blank space during fast scrolling. The default value works well for most use cases.
+  </Note>
+</ParamField>
+
+## Item Layout Optimization
+
+<ParamField path="overrideItemLayout" type="(layout: { span?: number }, item: TItem, index: number, maxColumns: number, extraData?: any) => void">
+  This method can be used to change column span of an item. Changing item span is useful when you have grid layouts (`numColumns > 1`) and you want few items to be bigger than the rest.
+
+  Modify the given layout object. Do not return a value. FlashList will fallback to default values if this is ignored.
+
+  <Warning>
+    **Performance**: This method is called very frequently. Keep it fast.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    numColumns={3}
+    overrideItemLayout={(layout, item, index, maxColumns) => {
+      // Make every 5th item span full width
+      if (index % 5 === 0) {
+        layout.span = maxColumns;
+      }
+    }}
+    estimatedItemSize={150}
+  />
+  ```
+
+  **Parameters:**
+  - `layout`: Object with `span` property to modify
+  - `item`: The data item
+  - `index`: Index in the data array
+  - `maxColumns`: Total number of columns (value of `numColumns` prop)
+  - `extraData`: Value from `extraData` prop
+
+  **Example - Pinterest-style Grid:**
+  ```tsx
+  const items = [
+    { id: '1', type: 'featured' },
+    { id: '2', type: 'normal' },
+    { id: '3', type: 'normal' },
+    { id: '4', type: 'featured' },
+  ];
+
+  <FlashList
+    data={items}
+    renderItem={({ item }) => (
+      <GridItem item={item} isFeatured={item.type === 'featured'} />
+    )}
+    numColumns={2}
+    overrideItemLayout={(layout, item) => {
+      if (item.type === 'featured') {
+        layout.span = 2; // Featured items span both columns
+      }
+    }}
+    estimatedItemSize={200}
+  />
+  ```
+</ParamField>
+
+## Recycling Configuration
+
+<ParamField path="maxItemsInRecyclePool" type="number">
+  <Badge text="New Architecture Only" />
+
+  Maximum number of items in the recycle pool. These are the items that are cached in the recycle pool when they are scrolled off the screen.
+
+  Unless you have a huge number of item types, you shouldn't need to set this. Setting this to 0 will disable the recycle pool and items will unmount once they are scrolled off the screen.
+
+  There's no limit by default.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    maxItemsInRecyclePool={10}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **When to adjust:**
+  - Set to `0` if items have expensive cleanup (e.g., timers, subscriptions)
+  - Increase if you have many item types and notice unmount/remount overhead
+  - Keep default for most use cases
+</ParamField>
+
+## Render Optimization
+
+<ParamField path="getItemType" type="(item: TItem, index: number, extraData?: any) => string | number | undefined">
+  Allows developers to override type of items. This will improve recycling if you have different types of items in the list. The right type will be used for the right item. Default type is 0.
+
+  If you don't want to change type for certain indexes, just return undefined.
+
+  <Warning>
+    **Performance**: This method is called very frequently. Keep it fast.
+  </Warning>
+
+  ```tsx
+  type FeedItem = 
+    | { type: 'header'; title: string }
+    | { type: 'post'; content: string; image?: string }
+    | { type: 'ad'; adId: string };
+
+  <FlashList
+    data={feedItems}
+    renderItem={({ item }) => {
+      switch (item.type) {
+        case 'header': return <HeaderItem {...item} />;
+        case 'post': return <PostItem {...item} />;
+        case 'ad': return <AdItem {...item} />;
+      }
+    }}
+    getItemType={(item) => item.type}
+    estimatedItemSize={100}
+  />
+  ```
+
+  **Benefits:**
+  - Better recycling: Headers recycle headers, posts recycle posts, etc.
+  - Prevents layout thrashing when item types have different sizes
+  - More efficient memory usage
+
+  **Performance Tips:**
+  - Return a simple string or number
+  - Avoid complex calculations
+  - Don't create new objects/arrays
+  - Use a property from the item if possible
+</ParamField>
+
+<ParamField path="removeClippedSubviews" type="boolean">
+  When true, offscreen child views are removed from the native view hierarchy. This can improve scrolling performance on long lists. Inherited from ScrollView.
+
+  <Note>
+    This is generally not needed with FlashList as it already handles view recycling efficiently.
+  </Note>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    removeClippedSubviews={true}
+    estimatedItemSize={50}
+  />
+  ```
+</ParamField>
+
+## Performance Monitoring
+
+<ParamField path="onLoad" type="(info: { elapsedTimeInMs: number }) => void">
+  This event is raised once the list has drawn items on the screen. It reports `elapsedTimeInMs` which is the time it took to draw the items.
+
+  This is required because FlashList doesn't render items in the first cycle. Items are drawn after it measures itself at the end of first render.
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    onLoad={({ elapsedTimeInMs }) => {
+      console.log(`List loaded in ${elapsedTimeInMs}ms`);
+      analytics.track('list_load_time', { duration: elapsedTimeInMs });
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  <Note>
+    If you're using `ListEmptyComponent`, this event is raised as soon as ListEmptyComponent is rendered.
+  </Note>
+</ParamField>
+
+## Advanced Configuration
+
+<ParamField path="overrideProps" type="OverrideProps">
+  Allows overriding internal ScrollView props. Props provided here are spread onto the internal ScrollView after all other props, so they take highest priority.
+
+  <Warning>
+    Use with caution — overriding internal props may interfere with FlashList's layout and recycling behavior.
+  </Warning>
+
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={renderItem}
+    overrideProps={{
+      initialDrawBatchSize: 10,
+      showsVerticalScrollIndicator: false,
+    }}
+    estimatedItemSize={50}
+  />
+  ```
+
+  **OverrideProps Type:**
+  ```typescript
+  interface OverrideProps {
+    initialDrawBatchSize?: number;
+    [key: string]: any;
+  }
+  ```
+</ParamField>
+
+## Performance Best Practices
+
+### 1. Accurate estimatedItemSize
+
+```tsx
+// Good: Measured actual item size
+<FlashList estimatedItemSize={78} />
+
+// Bad: Wild guess
+<FlashList estimatedItemSize={50} /> // Items are actually 200dp
+```
+
+### 2. Use getItemType for Mixed Content
+
+```tsx
+// Good: Define item types
+getItemType={(item) => item.type}
+
+// Bad: Not using getItemType when you have different layouts
+```
+
+### 3. Optimize renderItem
+
+```tsx
+// Good: Memoized component
+const MemoizedItem = memo(({ item }) => <Item {...item} />);
+renderItem={({ item }) => <MemoizedItem item={item} />}
+
+// Bad: Creating new components every render
+renderItem={({ item }) => <View><Text>{item.title}</Text></View>}
+```
+
+### 4. Use extraData Properly
+
+```tsx
+// Good: Pass only what's needed
+extraData={selectedId}
+
+// Bad: Passing entire state object
+extraData={state}
+```
+
+### 5. Key Extraction
+
+```tsx
+// Good: Stable, unique keys
+keyExtractor={(item) => item.id}
+
+// Bad: Using index
+keyExtractor={(item, index) => String(index)}
+```
+
+### 6. Avoid Expensive Operations in Render Callbacks
+
+```tsx
+// Good: Fast, simple logic
+getItemType={(item) => item.type}
+
+// Bad: Complex calculations
+getItemType={(item) => {
+  const processed = complexCalculation(item);
+  return processed.type;
+})
+```
+
+## Debugging Performance Issues
+
+### Blank Space During Scrolling
+
+**Cause**: `estimatedItemSize` is too inaccurate or `drawDistance` is too low.
+
+**Solution**:
+```tsx
+<FlashList
+  estimatedItemSize={100} // Make more accurate
+  drawDistance={500} // Increase if needed
+/>
+```
+
+### Scroll Lag
+
+**Cause**: Heavy `renderItem` or too many item types without `getItemType`.
+
+**Solution**:
+```tsx
+// Memoize components
+const Item = memo(({ item }) => <ExpensiveComponent {...item} />);
+
+// Define item types
+getItemType={(item) => item.type}
+```
+
+### Memory Issues
+
+**Cause**: Too many items in recycle pool or memory leaks in items.
+
+**Solution**:
+```tsx
+<FlashList
+  maxItemsInRecyclePool={10} // Limit pool size
+  // Or disable recycling if items have expensive cleanup
+  maxItemsInRecyclePool={0}
+/>
+```

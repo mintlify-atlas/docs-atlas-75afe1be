@@ -1,122 +1,127 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "FlashList",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#5B21B6",
+    "light": "#8B5CF6",
+    "dark": "#4C1D95"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/shopify/flash-list"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/shopify/flash-list"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Fundamentals",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "fundamentals/usage",
+              "fundamentals/recycling",
+              "fundamentals/performant-components",
+              "fundamentals/layout-commit-observer"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/masonry-layout",
+              "guides/section-list",
+              "guides/layout-animation",
+              "guides/reanimated",
+              "guides/testing",
+              "guides/list-profiling"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Migration",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "migration/v2-changes",
+              "migration/v2-migration",
+              "migration/from-flatlist"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "known-issues",
+              "troubleshooting",
+              "faq"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Components",
             "pages": [
-              "api-reference/introduction"
+              "api/flash-list",
+              "api/animated-flash-list"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Props",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/props/data-and-rendering",
+              "api/props/layout-and-styling",
+              "api/props/scroll-behavior",
+              "api/props/viewability",
+              "api/props/performance"
+            ]
+          },
+          {
+            "group": "Methods",
+            "pages": [
+              "api/methods/scroll-methods",
+              "api/methods/utility-methods"
+            ]
+          },
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/hooks/use-recycling-state",
+              "api/hooks/use-layout-state",
+              "api/hooks/use-mapping-helper",
+              "api/hooks/use-flash-list-context"
+            ]
+          },
+          {
+            "group": "Benchmarking",
+            "pages": [
+              "api/benchmarking/overview",
+              "api/benchmarking/use-benchmark",
+              "api/benchmarking/js-fps-monitor"
+            ]
+          },
+          {
+            "group": "TypeScript",
+            "pages": [
+              "api/typescript/types",
+              "api/typescript/interfaces"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

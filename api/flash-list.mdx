@@ -1,0 +1,859 @@
+---
+title: FlashList
+description: High-performance list component API reference
+---
+
+`FlashList` is a high-performance alternative to React Native's `FlatList`. It uses cell recycling to achieve smooth scrolling with large datasets.
+
+## Usage
+
+```tsx
+import { FlashList } from "@shopify/flash-list";
+
+function MyList() {
+  return (
+    <FlashList
+      data={items}
+      renderItem={({ item }) => <ItemView item={item} />}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+## Props
+
+### Required Props
+
+<ParamField path="data" type="ReadonlyArray<T> | null | undefined" required>
+  Array of items to render in the list.
+  
+  ```tsx
+  <FlashList data={[{id: 1, title: 'Item 1'}]} />
+  ```
+</ParamField>
+
+<ParamField path="renderItem" type="ListRenderItem<T> | null | undefined" required>
+  Takes an item from `data` and renders it into the list.
+  
+  The function receives:
+  - `item`: The item from `data` being rendered
+  - `index`: The index corresponding to this item in the `data` array
+  - `target`: Render context - `"Cell"`, `"StickyHeader"`, or `"Measurement"`
+  - `extraData`: Value passed to the `extraData` prop
+  
+  ```tsx
+  <FlashList
+    data={items}
+    renderItem={({ item, index, target }) => (
+      <Text>{item.title}</Text>
+    )}
+  />
+  ```
+</ParamField>
+
+### Layout Props
+
+<ParamField path="estimatedItemSize" type="number">
+  **Strongly recommended.** Approximate size of items in pixels. Providing this improves initial render performance and scroll position accuracy.
+  
+  For vertical lists, this is the height. For horizontal lists, this is the width.
+  
+  ```tsx
+  <FlashList estimatedItemSize={120} />
+  ```
+</ParamField>
+
+<ParamField path="horizontal" type="boolean">
+  If `true`, renders items next to each other horizontally instead of stacked vertically.
+  
+  Default: `false`
+</ParamField>
+
+<ParamField path="numColumns" type="number">
+  Multiple columns can only be rendered with `horizontal={false}` and will zig-zag like a `flexWrap` layout.
+  
+  Items should all be the same height - masonry layouts are not supported on old architecture.
+  
+  ```tsx
+  <FlashList numColumns={3} />
+  ```
+</ParamField>
+
+<ParamField path="drawDistance" type="number">
+  Draw distance for advanced rendering in dp/px. Controls how far off-screen items are rendered.
+  
+  Larger values improve scroll performance but use more memory.
+</ParamField>
+
+### Component Props
+
+<ParamField path="CellRendererComponent" type="ComponentType<any>">
+  Each cell is rendered using this element. Can be a React Component Class or render function.
+  
+  The root component should always be a `CellContainer` which is the default. The props include:
+  - `onLayout`: Method for updating layout data
+  - `index`: Index of the cell in the list
+  - `style`: Cell positioning and sizing styles
+  
+  <Note>
+    Changing layout of the cell can conflict with native layout operations. You may need to set `disableAutoLayout` to `true` to prevent this.
+  </Note>
+</ParamField>
+
+<ParamField path="ItemSeparatorComponent" type="ComponentType<any> | null">
+  Rendered in between each item, but not at the top or bottom.
+  
+  By default, `leadingItem` and `trailingItem` props are provided.
+  
+  ```tsx
+  <FlashList
+    ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#ccc' }} />}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListEmptyComponent" type="ComponentType<any> | ReactElement | null">
+  Rendered when the list is empty. Can be a React Component (e.g. `SomeComponent`) or a React element (e.g. `<SomeComponent />`).
+  
+  ```tsx
+  <FlashList
+    ListEmptyComponent={<Text>No items found</Text>}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListHeaderComponent" type="ComponentType<any> | ReactElement | null">
+  Rendered at the top of all the items. Can be a React Component or a React element.
+  
+  ```tsx
+  <FlashList
+    ListHeaderComponent={<Text>Header</Text>}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListHeaderComponentStyle" type="StyleProp<ViewStyle>">
+  Styling for internal View for `ListHeaderComponent`.
+</ParamField>
+
+<ParamField path="ListFooterComponent" type="ComponentType<any> | ReactElement | null">
+  Rendered at the bottom of all the items. Can be a React Component or a React element.
+  
+  ```tsx
+  <FlashList
+    ListFooterComponent={<ActivityIndicator />}
+  />
+  ```
+</ParamField>
+
+<ParamField path="ListFooterComponentStyle" type="StyleProp<ViewStyle>">
+  Styling for internal View for `ListFooterComponent`.
+</ParamField>
+
+<ParamField path="renderScrollComponent" type="ComponentType<ScrollViewProps>">
+  Rendered as the main scroll view. Use this to customize the underlying scroll component.
+  
+  ```tsx
+  <FlashList
+    renderScrollComponent={(props) => <CustomScrollView {...props} />}
+  />
+  ```
+</ParamField>
+
+### Data Management Props
+
+<ParamField path="keyExtractor" type="(item: T, index: number) => string">
+  Used to extract a unique key for a given item at the specified index.
+  
+  Key is used for optimizing performance. Defining `keyExtractor` is also necessary when doing [layout animations](https://shopify.github.io/flash-list/docs/guides/layout-animation) to uniquely identify animated components.
+  
+  ```tsx
+  <FlashList
+    keyExtractor={(item) => item.id.toString()}
+  />
+  ```
+</ParamField>
+
+<ParamField path="extraData" type="any">
+  A marker property for telling the list to re-render (since it implements `PureComponent`).
+  
+  If any of your `renderItem`, Header, Footer, etc. functions depend on anything outside of the `data` prop, stick it here and treat it immutably.
+  
+  ```tsx
+  <FlashList extraData={selectedId} />
+  ```
+</ParamField>
+
+<ParamField path="getItemType" type="(item: T, index: number, extraData?: any) => string | number | undefined">
+  Allows developers to override type of items. This will improve recycling if you have different types of items in the list.
+  
+  Right type will be used for the right item. Default type is `0`.
+  
+  <Warning>
+    **Performance:** This method is called very frequently. Keep it fast.
+  </Warning>
+  
+  ```tsx
+  <FlashList
+    getItemType={(item) => item.type}
+  />
+  ```
+</ParamField>
+
+<ParamField path="overrideItemLayout" type="(layout: { span?: number }, item: T, index: number, maxColumns: number, extraData?: any) => void">
+  This method can be used to change column span of an item.
+  
+  Changing item span is useful when you have grid layouts (`numColumns > 1`) and you want few items to be bigger than the rest.
+  
+  Modify the given layout. Do not return. FlashList will fallback to default values if this is ignored.
+  
+  <Warning>
+    **Performance:** This method is called very frequently. Keep it fast.
+  </Warning>
+  
+  ```tsx
+  <FlashList
+    numColumns={3}
+    overrideItemLayout={(layout, item) => {
+      if (item.featured) {
+        layout.span = 3; // Full width
+      }
+    }}
+  />
+  ```
+</ParamField>
+
+### Scroll & Interaction Props
+
+<ParamField path="initialScrollIndex" type="number">
+  Instead of starting at the top with the first item, start at `initialScrollIndex`.
+  
+  ```tsx
+  <FlashList initialScrollIndex={10} />
+  ```
+</ParamField>
+
+<ParamField path="initialScrollIndexParams" type="{ viewOffset?: number }">
+  Additional configuration for `initialScrollIndex`.
+  
+  Use `viewOffset` to apply an offset to the initial scroll position as defined by `initialScrollIndex`. Ignored if `initialScrollIndex` is not set.
+  
+  ```tsx
+  <FlashList
+    initialScrollIndex={5}
+    initialScrollIndexParams={{ viewOffset: 100 }}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onEndReached" type="() => void">
+  Called once when the scroll position gets within `onEndReachedThreshold` of the rendered content.
+  
+  ```tsx
+  <FlashList
+    onEndReached={() => loadMoreItems()}
+    onEndReachedThreshold={0.5}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onEndReachedThreshold" type="number">
+  How far from the end (in units of visible length of the list) the bottom edge of the list must be from the end of the content to trigger the `onEndReached` callback.
+  
+  Thus a value of `0.5` will trigger `onEndReached` when the end of the content is within half the visible length of the list.
+  
+  Default: `0.5`
+</ParamField>
+
+<ParamField path="onStartReached" type="() => void">
+  <Badge text="New Architecture Only" />
+  
+  Called once when the scroll position gets within `onStartReachedThreshold` of the start of the content.
+  
+  ```tsx
+  <FlashList
+    onStartReached={() => loadPreviousItems()}
+    onStartReachedThreshold={0.2}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onStartReachedThreshold" type="number">
+  <Badge text="New Architecture Only" />
+  
+  How far from the start (in units of visible length of the list) the top edge of the list must be from the start of the content to trigger the `onStartReached` callback.
+  
+  Thus a value of `0.5` will trigger `onStartReached` when the start of the content is within half the visible length of the list.
+  
+  Default: `0.2`
+</ParamField>
+
+<ParamField path="onLoad" type="(info: { elapsedTimeInMs: number }) => void">
+  This event is raised once the list has drawn items on the screen. It also reports `elapsedTimeInMs` which is the time it took to draw the items.
+  
+  This is required because FlashList doesn't render items in the first cycle. Items are drawn after it measures itself at the end of first render.
+  
+  If you're using `ListEmptyComponent`, this event is raised as soon as `ListEmptyComponent` is rendered.
+  
+  ```tsx
+  <FlashList
+    onLoad={({ elapsedTimeInMs }) => {
+      console.log(`List loaded in ${elapsedTimeInMs}ms`);
+    }}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onRefresh" type="() => void">
+  If provided, a standard RefreshControl will be added for "Pull to Refresh" functionality.
+  
+  Make sure to also set the `refreshing` prop correctly.
+  
+  ```tsx
+  <FlashList
+    onRefresh={handleRefresh}
+    refreshing={isRefreshing}
+  />
+  ```
+</ParamField>
+
+<ParamField path="refreshing" type="boolean">
+  Set this `true` while waiting for new data from a refresh.
+</ParamField>
+
+<ParamField path="progressViewOffset" type="number">
+  <Badge text="Android Only" />
+  
+  Set this when offset is needed for the loading indicator to show correctly.
+</ParamField>
+
+### Viewability Props
+
+<ParamField path="onViewableItemsChanged" type="(info: { viewableItems: ViewToken<T>[], changed: ViewToken<T>[] }) => void">
+  Called when the viewability of rows changes, as defined by the `viewabilityConfig` prop.
+  
+  Array of `changed` includes `ViewToken`s for both visible and non-visible items. You can use the `isViewable` flag to filter the items.
+  
+  If you are tracking the time a view becomes (non-)visible, use the `timestamp` property.
+  
+  <Expandable title="ViewToken interface">
+    ```tsx
+    interface ViewToken<T> {
+      item: T;
+      key: string;
+      index: number | null;
+      isViewable: boolean;
+      timestamp: number;
+    }
+    ```
+  </Expandable>
+  
+  ```tsx
+  <FlashList
+    onViewableItemsChanged={({ viewableItems, changed }) => {
+      viewableItems.forEach(token => {
+        if (token.isViewable) {
+          console.log('Item is visible:', token.item);
+        }
+      });
+    }}
+    viewabilityConfig={{
+      itemVisiblePercentThreshold: 50
+    }}
+  />
+  ```
+</ParamField>
+
+<ParamField path="viewabilityConfig" type="ViewabilityConfig">
+  A default configuration for determining whether items are viewable.
+  
+  <Warning>
+    Changing `viewabilityConfig` on the fly is not supported.
+  </Warning>
+  
+  <Expandable title="ViewabilityConfig properties">
+    - `minimumViewTime`: Minimum amount of time (in ms) that an item must be physically viewable before the viewability callback will be fired
+    - `viewAreaCoveragePercentThreshold`: Percent of viewport that must be covered for a partially occluded item to count as "viewable"
+    - `itemVisiblePercentThreshold`: Percent of item that must be visible for it to count as "viewable"
+    - `waitForInteraction`: Nothing is considered viewable until the user scrolls or `recordInteraction` is called
+  </Expandable>
+</ParamField>
+
+<ParamField path="viewabilityConfigCallbackPairs" type="ViewabilityConfigCallbackPair<T>[]">
+  List of `ViewabilityConfig`/`onViewableItemsChanged` pairs.
+  
+  A specific `onViewableItemsChanged` will be called when its corresponding `ViewabilityConfig`'s conditions are met.
+  
+  ```tsx
+  <FlashList
+    viewabilityConfigCallbackPairs={[
+      {
+        viewabilityConfig: { itemVisiblePercentThreshold: 50 },
+        onViewableItemsChanged: handleHalfVisible
+      },
+      {
+        viewabilityConfig: { itemVisiblePercentThreshold: 100 },
+        onViewableItemsChanged: handleFullyVisible
+      }
+    ]}
+  />
+  ```
+</ParamField>
+
+### Sticky Header Props
+
+<ParamField path="stickyHeaderIndices" type="number[]">
+  Array of indices of items that should stick to the top of the list as you scroll.
+  
+  Inherited from React Native's `ScrollView`.
+  
+  ```tsx
+  <FlashList stickyHeaderIndices={[0, 5, 10]} />
+  ```
+</ParamField>
+
+<ParamField path="onChangeStickyIndex" type="(current: number, previous: number) => void">
+  Callback invoked when the currently displayed sticky header changes.
+  
+  Receives the current sticky header index and the previous sticky header index. This is useful for tracking which header is currently stuck at the top while scrolling.
+  
+  The index refers to the position of the item in your data array that's being used as a sticky header.
+  
+  ```tsx
+  <FlashList
+    stickyHeaderIndices={[0, 5, 10]}
+    onChangeStickyIndex={(current, previous) => {
+      console.log(`Sticky header changed from ${previous} to ${current}`);
+    }}
+  />
+  ```
+</ParamField>
+
+<ParamField path="stickyHeaderConfig" type="object">
+  Configuration for sticky header behavior.
+  
+  <Expandable title="Configuration options">
+    <ParamField path="useNativeDriver" type="boolean">
+      If `true`, the sticky headers will use native driver for animations.
+      
+      Default: `true`
+    </ParamField>
+    
+    <ParamField path="offset" type="number">
+      Offset from the top of the list where sticky headers should stick.
+      
+      This is useful when you have a fixed header or navigation bar at the top of your screen and want sticky headers to appear below it instead of at the very top.
+      
+      Default: `0`
+    </ParamField>
+    
+    <ParamField path="backdropComponent" type="ComponentType<any> | ReactElement | null">
+      Component to render behind sticky headers (e.g., a backdrop or blur effect).
+      
+      Renders in front of the scroll view content but behind the sticky header itself. Useful for creating visual separation or effects like backgrounds with blur.
+    </ParamField>
+    
+    <ParamField path="hideRelatedCell" type="boolean">
+      When a sticky header is displayed, the cell associated with it is hidden.
+      
+      Default: `false`
+    </ParamField>
+  </Expandable>
+  
+  ```tsx
+  <FlashList
+    stickyHeaderIndices={[0]}
+    stickyHeaderConfig={{
+      offset: 60,
+      backdropComponent: <BlurView />
+    }}
+  />
+  ```
+</ParamField>
+
+### Advanced Props
+
+<ParamField path="overrideProps" type="OverrideProps">
+  Allows overriding internal ScrollView props. Props provided here are spread onto the internal ScrollView after all other props, so they take highest priority.
+  
+  This can be useful for cases where you need to set a style on the ScrollView itself rather than the outer container. For example, to enable visible overflow:
+  
+  ```tsx
+  <FlashList
+    style={{ overflow: "visible" }}
+    overrideProps={{ style: { overflow: "visible" } }}
+  />
+  ```
+  
+  <Warning>
+    Use with caution — overriding internal props may interfere with FlashList's layout and recycling behavior.
+  </Warning>
+</ParamField>
+
+<ParamField path="maxItemsInRecyclePool" type="number">
+  <Badge text="New Architecture Only" />
+  
+  Maximum number of items in the recycle pool. These are the items that are cached in the recycle pool when they are scrolled off the screen.
+  
+  Unless you have a huge number of item types, you shouldn't need to set this. Setting this to `0` will disable the recycle pool and items will unmount once they are scrolled off the screen.
+  
+  There's no limit by default.
+</ParamField>
+
+<ParamField path="masonry" type="boolean">
+  <Badge text="New Architecture Only" />
+  
+  Enable masonry layout. Items can have different heights and will be arranged in a Pinterest-style layout.
+  
+  ```tsx
+  <FlashList masonry numColumns={2} />
+  ```
+</ParamField>
+
+<ParamField path="optimizeItemArrangement" type="boolean">
+  <Badge text="New Architecture Only" />
+  
+  If enabled, MasonryFlashList will try to reduce difference in column height by modifying item order.
+</ParamField>
+
+<ParamField path="maintainVisibleContentPosition" type="object">
+  <Badge text="New Architecture Only" />
+  
+  Configuration for maintaining scroll position when content changes. Useful for chat-like interfaces where new messages can be added at the top or bottom.
+  
+  <Expandable title="Configuration options">
+    <ParamField path="disabled" type="boolean">
+      Disables maintainVisibleContentPosition.
+      
+      Note: maintainVisibleContentPosition is enabled by default.
+    </ParamField>
+    
+    <ParamField path="autoscrollToTopThreshold" type="number">
+      When content is added at the top, automatically scroll to maintain position if the user is within this threshold of the top.
+    </ParamField>
+    
+    <ParamField path="autoscrollToBottomThreshold" type="number">
+      When content is added at the bottom, automatically scroll to maintain position if the user is within this threshold of the bottom.
+    </ParamField>
+    
+    <ParamField path="animateAutoScrollToBottom" type="boolean">
+      Scroll with animation whenever `autoscrollToBottom` is triggered.
+      
+      Default: `true`
+    </ParamField>
+    
+    <ParamField path="startRenderingFromBottom" type="boolean">
+      If `true`, initial render will start from the bottom of the list, useful for chat-like interfaces when there are only few messages.
+    </ParamField>
+  </Expandable>
+  
+  ```tsx
+  <FlashList
+    maintainVisibleContentPosition={{
+      autoscrollToBottomThreshold: 100,
+      startRenderingFromBottom: true
+    }}
+  />
+  ```
+</ParamField>
+
+<ParamField path="onCommitLayoutEffect" type="() => void">
+  <Badge text="New Architecture Only" />
+  
+  Called when the layout is committed. Can be used to measure list.
+  
+  <Warning>
+    Doing set state inside the callback can lead to infinite loops. Make sure FlashList's props are memoized.
+  </Warning>
+</ParamField>
+
+<ParamField path="style" type="StyleProp<ViewStyle>">
+  <Badge text="New Architecture Only" />
+  
+  Style for the RecyclerView's parent container.
+  
+  Please avoid anything which can mess size of children in this view. For example, margin is okay but padding is not.
+  
+  <Note>
+    To enable `overflow: "visible"`, you must also set it on the internal ScrollView via `overrideProps`.
+  </Note>
+</ParamField>
+
+### ScrollView Props
+
+`FlashList` also accepts all `ScrollView` props except `maintainVisibleContentPosition` (use the FlashList-specific version instead on new architecture).
+
+Common ScrollView props include:
+- `contentContainerStyle`
+- `showsVerticalScrollIndicator`
+- `showsHorizontalScrollIndicator`
+- `onScroll`
+- `scrollEventThrottle`
+- `inverted`
+- And many more from React Native's [ScrollView](https://reactnative.dev/docs/scrollview)
+
+## Ref Methods
+
+Access these methods by passing a ref to `FlashList`:
+
+```tsx
+const listRef = useRef<FlashListRef<ItemType>>(null);
+
+<FlashList ref={listRef} data={data} renderItem={renderItem} />
+
+// Later:
+listRef.current?.scrollToIndex({ index: 5, animated: true });
+```
+
+### Scrolling Methods
+
+<ParamField path="scrollToOffset" type="(params: ScrollToOffsetParams) => void">
+  Scrolls the list to a specific offset position.
+  
+  Use this method when you want precise control over the scroll position in pixels rather than by item index.
+  
+  <Expandable title="Parameters">
+    - `offset` (number, required): The pixel offset to scroll to
+    - `animated` (boolean): Whether the scroll should be animated
+    - `skipFirstItemOffset` (boolean): If `true`, the first item offset (headers/padding) will not be included in calculation (default: `true`)
+  </Expandable>
+  
+  ```tsx
+  listRef.current?.scrollToOffset({ offset: 200, animated: true });
+  ```
+</ParamField>
+
+<ParamField path="scrollToIndex" type="(params: ScrollToIndexParams) => Promise<void>">
+  Scrolls to a specific index in the list. This is the most common method to scroll to a particular item.
+  
+  <Expandable title="Parameters">
+    - `index` (number, required): The index of the item to scroll to
+    - `animated` (boolean): Whether the scroll should be animated
+    - `viewPosition` (number): Position of the item within the visible area: `0` = top/left, `0.5` = center, `1` = bottom/right (default: `0`)
+    - `viewOffset` (number): Additional offset to apply after viewPosition calculation
+  </Expandable>
+  
+  ```tsx
+  listRef.current?.scrollToIndex({
+    index: 4,
+    animated: true,
+    viewPosition: 0.5 // Center the item
+  });
+  ```
+</ParamField>
+
+<ParamField path="scrollToItem" type="(params: ScrollToItemParams<T>) => void">
+  Scrolls to a specific item in the list.
+  
+  Similar to `scrollToIndex`, but works with the item reference instead of its index. Useful when you have a reference to an item but don't know its index.
+  
+  <Expandable title="Parameters">
+    - `item` (T, required): The item object to scroll to
+    - `animated` (boolean): Whether the scroll should be animated
+    - `viewPosition` (number): Position of the item within the visible area
+    - `viewOffset` (number): Additional offset to apply
+  </Expandable>
+  
+  ```tsx
+  const targetItem = data[10];
+  listRef.current?.scrollToItem({
+    item: targetItem,
+    animated: true
+  });
+  ```
+</ParamField>
+
+<ParamField path="scrollToEnd" type="(params?: ScrollToEdgeParams) => void">
+  Scrolls to the end of the list.
+  
+  ```tsx
+  listRef.current?.scrollToEnd({ animated: true });
+  ```
+</ParamField>
+
+<ParamField path="scrollToTop" type="(params?: ScrollToEdgeParams) => void">
+  Scrolls to the top (or start) of the list.
+  
+  ```tsx
+  listRef.current?.scrollToTop({ animated: true });
+  ```
+</ParamField>
+
+<ParamField path="flashScrollIndicators" type="() => void">
+  Makes the scroll indicators flash momentarily.
+  
+  Useful to indicate to users that there is more content to scroll.
+  
+  ```tsx
+  listRef.current?.flashScrollIndicators();
+  ```
+</ParamField>
+
+### Information Methods
+
+<ParamField path="getLayout" type="(index: number) => RVLayout | undefined">
+  Returns the layout information for a specific item.
+  
+  Use this to get position and size information for an item at a given index.
+  
+  ```tsx
+  const itemLayout = listRef.current?.getLayout(5);
+  console.log(`Item 5 position: (${itemLayout.x}, ${itemLayout.y})`);
+  ```
+</ParamField>
+
+<ParamField path="computeVisibleIndices" type="() => { startIndex: number; endIndex: number }">
+  Returns the currently visible item indices.
+  
+  Use this to determine which items are currently visible to the user.
+  
+  ```tsx
+  const { startIndex, endIndex } = listRef.current?.computeVisibleIndices();
+  console.log(`Visible items: ${startIndex} to ${endIndex}`);
+  ```
+</ParamField>
+
+<ParamField path="getFirstVisibleIndex" type="() => number">
+  Returns the index of the first visible item.
+  
+  Convenience method when you only need the first visible item.
+  
+  ```tsx
+  const firstVisibleIndex = listRef.current?.getFirstVisibleIndex();
+  ```
+</ParamField>
+
+<ParamField path="getFirstItemOffset" type="() => number">
+  Returns the offset of the first item (accounts for header/padding).
+  
+  Useful when implementing custom scroll behavior or calculating positions.
+  
+  ```tsx
+  const offset = listRef.current?.getFirstItemOffset();
+  ```
+</ParamField>
+
+<ParamField path="getWindowSize" type="() => { width: number; height: number }">
+  Returns the current viewport dimensions.
+  
+  ```tsx
+  const { width, height } = listRef.current?.getWindowSize();
+  ```
+</ParamField>
+
+<ParamField path="getChildContainerDimensions" type="() => { width: number; height: number }">
+  Returns the dimensions of the child container.
+</ParamField>
+
+<ParamField path="getAbsoluteLastScrollOffset" type="() => number">
+  Returns the absolute last scroll offset.
+  
+  Useful for implementing custom scroll tracking functionality.
+</ParamField>
+
+<ParamField path="props" type="RecyclerViewProps<T>">
+  Get access to current props.
+</ParamField>
+
+### Native Access Methods
+
+<ParamField path="getNativeScrollRef" type="() => CompatScroller | null">
+  Returns the underlying native scroll view reference.
+  
+  Use this when you need direct access to the native scroll component. This is generally not recommended for regular use.
+</ParamField>
+
+<ParamField path="getScrollResponder" type="() => any">
+  Returns a reference to the scroll responder.
+  
+  Useful for more advanced scroll handling and integrations.
+</ParamField>
+
+<ParamField path="getScrollableNode" type="() => any">
+  Returns the underlying scrollable node.
+  
+  Primarily used for platform-specific integrations.
+</ParamField>
+
+### Advanced Methods
+
+<ParamField path="recomputeViewableItems" type="() => void">
+  Forces recalculation of viewable items (viewability callbacks).
+  
+  Call this after any operation that might affect item visibility but doesn't trigger a scroll event.
+  
+  ```tsx
+  listRef.current?.recomputeViewableItems();
+  ```
+</ParamField>
+
+<ParamField path="recordInteraction" type="() => void">
+  Marks the list as having been interacted with.
+  
+  Call this method when you want to manually trigger the `onViewableItemsChanged` callback without an actual scroll event.
+</ParamField>
+
+<ParamField path="prepareForLayoutAnimationRender" type="() => void">
+  Disables item recycling in preparation for layout animations.
+  
+  Call this before performing layout animations to prevent visual glitches. Remember to reset disableRecycling after animations complete.
+  
+  ```tsx
+  listRef.current?.prepareForLayoutAnimationRender();
+  ```
+</ParamField>
+
+<ParamField path="clearLayoutCacheOnUpdate" type="() => void">
+  Clears the layout cache on update.
+  
+  Call this when you want to clear the layout cache on update. Can be useful for carousels when orientation changes.
+  
+  This should be called before the render and not in an effect.
+  
+  ```tsx
+  listRef.current?.clearLayoutCacheOnUpdate();
+  ```
+</ParamField>
+
+## Type Definitions
+
+### ListRenderItemInfo
+
+```tsx
+interface ListRenderItemInfo<TItem> {
+  item: TItem;
+  index: number;
+  target: RenderTarget;
+  extraData?: any;
+}
+```
+
+### RenderTarget
+
+```tsx
+type RenderTarget = "Cell" | "StickyHeader" | "Measurement";
+```
+
+FlashList may render your items for multiple reasons:
+- `Cell`: This is for your list item
+- `Measurement`: Might be invoked for size measurement and won't be visible. You can ignore this in analytics.
+- `StickyHeader`: This is for your sticky header. Use this to change your item's appearance while it's being used as a sticky header.
+
+### ViewToken
+
+```tsx
+interface ViewToken<T> {
+  item: T;
+  key: string;
+  index: number | null;
+  isViewable: boolean;
+  timestamp: number;
+}
+```
+
+## Related
+
+- [AnimatedFlashList](/api/animated-flash-list)
+- [Getting Started](/fundamentals/getting-started)
+- [Performant Components](/fundamentals/performant-components)

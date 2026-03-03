@@ -1,0 +1,353 @@
+---
+title: Masonry Layout
+description: Create Pinterest-style layouts with variable item heights
+icon: table-columns
+---
+
+Masonry Layout allows you to create a grid of items with different heights, perfect for displaying collections like images, cards, or mixed content. Think Pinterest-style layouts where items flow naturally into columns.
+
+<Frame>
+  <img src="https://user-images.githubusercontent.com/7811728/188055598-41f5c961-0dd0-4bb9-bc6e-22d78596a036.png" alt="Masonry Layout Example" />
+</Frame>
+
+## Basic Masonry Layout
+
+Enable masonry layout by adding the `masonry` prop to your `FlashList`:
+
+```tsx
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface MasonryItem {
+  id: string;
+  title: string;
+  height: number;
+}
+
+const MyMasonryList = () => {
+  const data: MasonryItem[] = [
+    { id: "1", title: "Item 1", height: 150 },
+    { id: "2", title: "Item 2", height: 200 },
+    { id: "3", title: "Item 3", height: 120 },
+    // ... more items
+  ];
+
+  return (
+    <FlashList
+      data={data}
+      masonry
+      numColumns={2}
+      renderItem={({ item }) => (
+        <View style={[styles.card, { height: item.height }]}>
+          <Text>{item.title}</Text>
+        </View>
+      )}
+      keyExtractor={(item) => item.id}
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#f0f0f0",
+    margin: 4,
+    borderRadius: 8,
+    padding: 12,
+  },
+});
+```
+
+<Note>
+The masonry prop works with `numColumns` to determine how many columns your layout should have.
+</Note>
+
+## Custom Column Spans
+
+For more complex layouts where items can span multiple columns, use `overrideItemLayout`:
+
+<Steps>
+  <Step title="Define your data structure">
+    Add a `span` property to your items to control how many columns they occupy:
+
+    ```tsx
+    interface MasonryItem {
+      id: string;
+      title: string;
+      imageUrl: string;
+      height: number;
+      span: number; // Number of columns this item spans
+    }
+    ```
+  </Step>
+
+  <Step title="Configure overrideItemLayout">
+    Use `overrideItemLayout` to set the span for each item:
+
+    ```tsx
+    <FlashList
+      data={data}
+      masonry
+      numColumns={3}
+      overrideItemLayout={(layout, item) => {
+        // Set custom span based on item data
+        layout.span = item.span;
+        // Heights are automatically determined by rendered content
+      }}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Image 
+            source={{ uri: item.imageUrl }} 
+            style={{ width: "100%", height: item.height }}
+          />
+          <Text>{item.title}</Text>
+        </View>
+      )}
+      keyExtractor={(item) => item.id}
+    />
+    ```
+  </Step>
+
+  <Step title="Style your items">
+    Items automatically adjust their width based on the span value:
+
+    ```tsx
+    const styles = StyleSheet.create({
+      card: {
+        backgroundColor: "white",
+        margin: 4,
+        borderRadius: 12,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      },
+    });
+    ```
+  </Step>
+</Steps>
+
+## Advanced: Interactive Masonry
+
+Create dynamic masonry layouts with expandable items:
+
+```tsx
+import React, { useState, useCallback } from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface MasonryItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  height: number;
+  span: number;
+  isExpanded: boolean;
+}
+
+const InteractiveMasonry = () => {
+  const [items, setItems] = useState<MasonryItem[]>([
+    { id: "1", title: "Photo 1", imageUrl: "...", height: 200, span: 1, isExpanded: false },
+    { id: "2", title: "Photo 2", imageUrl: "...", height: 250, span: 2, isExpanded: false },
+    // ... more items
+  ]);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === id ? { ...item, isExpanded: !item.isExpanded } : item
+      )
+    );
+  }, []);
+
+  return (
+    <FlashList
+      data={items}
+      masonry
+      optimizeItemArrangement
+      numColumns={3}
+      overrideItemLayout={(layout, item) => {
+        layout.span = item.span;
+        // Adjust height based on expanded state
+        layout.size = item.isExpanded ? item.height * 1.5 : item.height;
+      }}
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => handleToggleExpand(item.id)}
+        >
+          <View
+            style={{
+              height: item.isExpanded ? item.height * 1.5 : item.height,
+              backgroundColor: "#f0f0f0",
+              margin: 4,
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+            />
+            <View style={{ position: "absolute", bottom: 8, left: 8 }}>
+              <Text style={{ color: "white", fontWeight: "bold" }}>
+                {item.title}
+              </Text>
+              <Text style={{ color: "white", fontSize: 12 }}>
+                {item.isExpanded ? "Tap to shrink" : "Tap to expand"}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+      keyExtractor={(item) => item.id}
+    />
+  );
+};
+```
+
+## Configuration Options
+
+### optimizeItemArrangement
+
+When enabled, FlashList attempts to minimize column height differences by adjusting item placement:
+
+```tsx
+<FlashList
+  masonry
+  optimizeItemArrangement={true} // Default: true
+  numColumns={3}
+  // ...
+/>
+```
+
+<Tabs>
+  <Tab title="Enabled (Default)">
+    Items are arranged to balance column heights, which may change the order slightly but creates a more visually balanced layout.
+  </Tab>
+  <Tab title="Disabled">
+    Items maintain their original order strictly, which may result in uneven column heights.
+  </Tab>
+</Tabs>
+
+## Migration from v1
+
+<Warning>
+If you're upgrading from FlashList v1, the API has been simplified in v2.
+</Warning>
+
+### Before (v1)
+
+```tsx
+import { MasonryFlashList } from "@shopify/flash-list";
+
+<MasonryFlashList
+  data={data}
+  numColumns={2}
+  overrideItemLayout={(layout, item, index, maxColumns, extraData) => {
+    layout.span = item.span;
+    layout.size = item.height; // Required size estimate
+  }}
+  renderItem={renderItem}
+/>
+```
+
+### After (v2)
+
+```tsx
+import { FlashList } from "@shopify/flash-list";
+
+<FlashList
+  data={data}
+  masonry  // Just add this prop!
+  numColumns={2}
+  overrideItemLayout={(layout, item) => {
+    layout.span = item.span;
+    // Size is automatically determined - no estimates needed!
+  }}
+  renderItem={renderItem}
+/>
+```
+
+### Key Changes
+
+<CardGroup cols={2}>
+  <Card title="Simplified API" icon="wand-magic-sparkles">
+    Use `FlashList` with `masonry` prop instead of separate `MasonryFlashList` component
+  </Card>
+  <Card title="Automatic Heights" icon="ruler-vertical">
+    No need to provide size estimates in `overrideItemLayout` - heights are determined automatically
+  </Card>
+  <Card title="No getColumnFlex" icon="columns">
+    The `getColumnFlex` prop is no longer supported in v2
+  </Card>
+  <Card title="Better Performance" icon="gauge-high">
+    Improved layout calculation and rendering performance
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use keyExtractor for stable keys">
+    Always provide a `keyExtractor` to ensure items maintain their identity during layout changes:
+
+    ```tsx
+    keyExtractor={(item) => item.id}
+    ```
+  </Accordion>
+
+  <Accordion title="Optimize image loading">
+    Use image libraries with caching for better performance:
+
+    ```tsx
+    import FastImage from 'react-native-fast-image';
+
+    <FastImage
+      source={{ uri: item.imageUrl }}
+      style={{ width: "100%", height: item.height }}
+      resizeMode="cover"
+    />
+    ```
+  </Accordion>
+
+  <Accordion title="Consider span patterns">
+    Create visual interest by using span patterns:
+
+    ```tsx
+    const span = index === 0 || index % 7 === 0 ? 2 : 1;
+    ```
+  </Accordion>
+
+  <Accordion title="Add proper spacing">
+    Use margins and padding for visual separation:
+
+    ```tsx
+    contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 8 }}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<Warning>
+**Items overlapping or misaligned?** Make sure your item heights are set correctly in both the style and the data.
+</Warning>
+
+<Note>
+**Layout jumping during scroll?** This is usually caused by inconsistent item heights. Ensure your height calculations are deterministic.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Performance Tips" icon="rocket" href="/fundamentals/performant-components">
+    Learn how to optimize your masonry list
+  </Card>
+  <Card title="Grid Layouts" icon="grid" href="/fundamentals/usage#numcolumns">
+    Create uniform grid layouts
+  </Card>
+</CardGroup>

@@ -1,0 +1,408 @@
+---
+title: LayoutCommitObserver
+description: Track when FlashList components complete their layout
+---
+
+The `LayoutCommitObserver` is a utility component that helps you track when all FlashList components in your component tree have completed their layout. This is particularly useful for coordinating complex UI behaviors that depend on list rendering completion.
+
+## Overview
+
+When working with multiple FlashList components or when you need to perform actions after a FlashList has finished its render, the LayoutCommitObserver provides a clean way to observe and react to these layout events.
+
+<Note>
+The callback is fired after **every** layout operation, not just the first one. This means it will be called whenever any FlashList in the tree commits a layout change.
+</Note>
+
+## When to Use
+
+LayoutCommitObserver is ideal for:
+
+- **Measuring view sizes** after all internal lists have rendered
+- **Coordinating animations** that depend on list layout completion
+- **Parent components** that don't have direct access to FlashList (e.g., your component just accepts a `children` prop)
+- **Multiple FlashLists** where you need to know when all of them have completed layout
+- **Blocking paint** until state changes are ready - doing `setState` in the callback will block paint until your state change is committed
+
+## When NOT to Use
+
+Consider alternatives in these scenarios:
+
+- **Single FlashList with access to it**: Use the `onCommitLayoutEffect` prop directly on FlashList instead
+- **Don't need to block paint**: Use the `onLoad` callback for better performance
+- **Simple scroll tracking**: Use `onViewableItemsChanged` or scroll events instead
+
+## Basic Usage
+
+Wrap your component tree containing FlashLists with LayoutCommitObserver:
+
+```tsx
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function MyScreen() {
+  const handleLayoutComplete = () => {
+    console.log("All FlashLists have completed their layout!");
+    // Perform any post-layout actions here
+  };
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <View>
+        <FlashList
+          data={data1}
+          renderItem={renderItem1}
+          estimatedItemSize={100}
+        />
+        <FlashList
+          data={data2}
+          renderItem={renderItem2}
+          estimatedItemSize={80}
+        />
+      </View>
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Measuring Container Size
+
+A common use case is measuring the size of a container after all lists have rendered:
+
+```tsx
+import { useRef, useState, useCallback } from "react";
+import { View, LayoutChangeEvent } from "react-native";
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function ResponsiveList() {
+  const containerRef = useRef<View>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  const handleLayoutComplete = useCallback(() => {
+    // Measure container after lists have rendered
+    containerRef.current?.measure((x, y, width, height) => {
+      console.log("Container dimensions:", { width, height });
+      setContainerHeight(height);
+    });
+  }, []);
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <View ref={containerRef}>
+        <FlashList
+          data={items}
+          renderItem={({ item }) => <ItemView item={item} />}
+          estimatedItemSize={100}
+        />
+      </View>
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Coordinating Animations
+
+LayoutCommitObserver is useful for triggering animations after lists have rendered:
+
+```tsx
+import { useRef } from "react";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function AnimatedListContainer() {
+  const opacity = useSharedValue(0);
+  const hasRendered = useRef(false);
+
+  const handleLayoutComplete = () => {
+    if (!hasRendered.current) {
+      hasRendered.current = true;
+      // Fade in after initial render
+      opacity.value = withTiming(1, { duration: 300 });
+    }
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <Animated.View style={animatedStyle}>
+        <FlashList
+          data={items}
+          renderItem={({ item }) => <ItemView item={item} />}
+          estimatedItemSize={100}
+        />
+      </Animated.View>
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Multiple Nested Lists
+
+When working with nested FlashLists, LayoutCommitObserver ensures the callback fires only after all nested lists have completed:
+
+```tsx
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function NestedListsScreen() {
+  const handleAllLayoutsComplete = () => {
+    console.log("All nested lists have completed layout");
+  };
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleAllLayoutsComplete}>
+      <FlashList
+        data={sections}
+        renderItem={({ item: section }) => (
+          <View>
+            <Text>{section.title}</Text>
+            {/* Nested horizontal list */}
+            <FlashList
+              data={section.items}
+              horizontal
+              renderItem={({ item }) => <ItemCard item={item} />}
+              estimatedItemSize={120}
+            />
+          </View>
+        )}
+        estimatedItemSize={200}
+      />
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Blocking Paint for State Updates
+
+LayoutCommitObserver can block paint until your state updates are ready:
+
+```tsx
+import { useState } from "react";
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function SynchronizedUI() {
+  const [isReady, setIsReady] = useState(false);
+  const [measurements, setMeasurements] = useState({ width: 0, height: 0 });
+
+  const handleLayoutComplete = () => {
+    // This setState will block paint until committed
+    setMeasurements({ width: 100, height: 200 });
+    setIsReady(true);
+  };
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <View>
+        {!isReady && <LoadingSpinner />}
+        <FlashList
+          data={items}
+          renderItem={({ item }) => <ItemView item={item} />}
+          estimatedItemSize={100}
+        />
+        {isReady && <Footer measurements={measurements} />}
+      </View>
+    </LayoutCommitObserver>
+  );
+}
+```
+
+<Warning>
+Doing `setState` inside `onCommitLayoutEffect` can lead to infinite loops if not handled carefully. Make sure FlashList's props are properly memoized to prevent continuous re-renders.
+</Warning>
+
+## Preventing Infinite Loops
+
+Be cautious when updating state in the callback:
+
+```tsx
+import { useCallback, useMemo, useState } from "react";
+import { LayoutCommitObserver, FlashList } from "@shopify/flash-list";
+
+function SafeLayoutObserver() {
+  const [layoutCount, setLayoutCount] = useState(0);
+  const [data] = useState(initialData);
+
+  // ✅ Memoize callback to prevent infinite loops
+  const handleLayoutComplete = useCallback(() => {
+    setLayoutCount((prev) => prev + 1);
+  }, []);
+
+  // ✅ Memoize renderItem
+  const renderItem = useCallback(
+    ({ item }) => <ItemView item={item} />,
+    []
+  );
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <FlashList
+        data={data}
+        renderItem={renderItem}
+        estimatedItemSize={100}
+      />
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Comparison with onCommitLayoutEffect Prop
+
+LayoutCommitObserver vs. FlashList's `onCommitLayoutEffect` prop:
+
+### Using LayoutCommitObserver:
+
+```tsx
+// ✅ Use when you don't have direct access to FlashList
+function ParentComponent({ children }) {
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={() => console.log("Done")}>
+      {children}
+    </LayoutCommitObserver>
+  );
+}
+
+// Children render FlashList
+function ChildComponent() {
+  return <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />;
+}
+```
+
+### Using onCommitLayoutEffect prop:
+
+```tsx
+// ✅ Use when you have direct access to a single FlashList
+function SimpleList() {
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={100}
+      onCommitLayoutEffect={() => console.log("Layout committed")}
+    />
+  );
+}
+```
+
+## TypeScript Types
+
+```tsx
+import type { LayoutCommitObserverProps } from "@shopify/flash-list";
+
+interface LayoutCommitObserverProps {
+  children: React.ReactNode;
+  onCommitLayoutEffect?: () => void;
+}
+
+// Usage
+const MyObserver: React.FC<LayoutCommitObserverProps> = ({
+  children,
+  onCommitLayoutEffect,
+}) => {
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={onCommitLayoutEffect}>
+      {children}
+    </LayoutCommitObserver>
+  );
+};
+```
+
+## Props
+
+<ParamField path="children" type="React.ReactNode" required>
+  The component tree that contains one or more FlashList components.
+</ParamField>
+
+<ParamField path="onCommitLayoutEffect" type="() => void">
+  Callback invoked when all FlashList components in the tree have completed their layout. Called after every layout operation, not just the first render.
+</ParamField>
+
+## Best Practices
+
+1. **Memoize callbacks**: Always memoize the `onCommitLayoutEffect` callback to prevent infinite loops
+2. **Memoize FlashList props**: Ensure `renderItem`, `keyExtractor`, and other FlashList props are memoized
+3. **Avoid heavy operations**: Keep the callback lightweight - heavy operations should be debounced or moved to useEffect
+4. **Use conditionally**: Only use LayoutCommitObserver when you actually need to coordinate multiple lists or measure after layout
+5. **Consider alternatives**: If you have access to FlashList directly and only need to track one list, use `onCommitLayoutEffect` prop instead
+
+## Common Use Cases
+
+### Use Case 1: Loading Indicator
+
+```tsx
+function ListWithLoader() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  return (
+    <>
+      {isLoading && <LoadingOverlay />}
+      <LayoutCommitObserver
+        onCommitLayoutEffect={() => setIsLoading(false)}
+      >
+        <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
+      </LayoutCommitObserver>
+    </>
+  );
+}
+```
+
+### Use Case 2: Analytics
+
+```tsx
+function TrackedList() {
+  const renderStartTime = useRef(Date.now());
+
+  const handleLayoutComplete = useCallback(() => {
+    const renderTime = Date.now() - renderStartTime.current;
+    analytics.track("list_rendered", { renderTime });
+  }, []);
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <FlashList data={data} renderItem={renderItem} estimatedItemSize={100} />
+    </LayoutCommitObserver>
+  );
+}
+```
+
+### Use Case 3: Scroll to Position After Render
+
+```tsx
+function ListWithAutoScroll() {
+  const flashListRef = useRef(null);
+  const shouldScroll = useRef(true);
+
+  const handleLayoutComplete = useCallback(() => {
+    if (shouldScroll.current) {
+      shouldScroll.current = false;
+      flashListRef.current?.scrollToIndex({
+        index: 10,
+        animated: false,
+      });
+    }
+  }, []);
+
+  return (
+    <LayoutCommitObserver onCommitLayoutEffect={handleLayoutComplete}>
+      <FlashList
+        ref={flashListRef}
+        data={data}
+        renderItem={renderItem}
+        estimatedItemSize={100}
+      />
+    </LayoutCommitObserver>
+  );
+}
+```
+
+## Summary
+
+- `LayoutCommitObserver` tracks when all FlashList components in a tree complete their layout
+- Use it when you need to coordinate actions across multiple lists or measure views after rendering
+- Always memoize callbacks and FlashList props to prevent infinite loops
+- Consider using `onCommitLayoutEffect` prop directly on FlashList when you have access to a single list
+- The callback fires after **every** layout operation, not just the first render
+- Useful for animations, measurements, loading states, and analytics

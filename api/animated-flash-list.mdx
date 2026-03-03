@@ -1,0 +1,339 @@
+---
+title: AnimatedFlashList
+description: Animated wrapper for FlashList component
+---
+
+`AnimatedFlashList` is an animated version of `FlashList` created using React Native's `Animated.createAnimatedComponent`. It supports all the same props as `FlashList` while allowing you to use it with React Native's Animated API.
+
+## Usage
+
+```tsx
+import { Animated } from "react-native";
+import AnimatedFlashList from "@shopify/flash-list/dist/AnimatedFlashList";
+
+function MyAnimatedList() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  return (
+    <AnimatedFlashList
+      data={items}
+      renderItem={({ item }) => <ItemView item={item} />}
+      estimatedItemSize={100}
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: true }
+      )}
+      scrollEventThrottle={16}
+    />
+  );
+}
+```
+
+## Common Use Cases
+
+### Animated Header on Scroll
+
+Create a header that fades out or changes size based on scroll position:
+
+```tsx
+import { Animated, StyleSheet } from "react-native";
+import AnimatedFlashList from "@shopify/flash-list/dist/AnimatedFlashList";
+
+function ListWithAnimatedHeader() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [80, 50],
+    extrapolate: "clamp",
+  });
+
+  return (
+    <>
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: headerOpacity,
+            height: headerHeight,
+          },
+        ]}
+      >
+        <Text>Animated Header</Text>
+      </Animated.View>
+
+      <AnimatedFlashList
+        data={items}
+        renderItem={({ item }) => <ItemView item={item} />}
+        estimatedItemSize={100}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false } // false for layout properties
+        )}
+        scrollEventThrottle={16}
+      />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
+    zIndex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
+```
+
+### Parallax Effect
+
+Implement a parallax scrolling effect:
+
+```tsx
+import { Animated } from "react-native";
+import AnimatedFlashList from "@shopify/flash-list/dist/AnimatedFlashList";
+
+function ParallaxList() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const bannerTranslateY = scrollY.interpolate({
+    inputRange: [0, 300],
+    outputRange: [0, -150],
+    extrapolate: "clamp",
+  });
+
+  return (
+    <>
+      <Animated.Image
+        source={{ uri: "https://example.com/banner.jpg" }}
+        style={[
+          styles.banner,
+          {
+            transform: [{ translateY: bannerTranslateY }],
+          },
+        ]}
+      />
+
+      <AnimatedFlashList
+        data={items}
+        renderItem={({ item }) => <ItemView item={item} />}
+        estimatedItemSize={100}
+        contentContainerStyle={{ paddingTop: 200 }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  banner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+  },
+});
+```
+
+### Scroll Progress Indicator
+
+Show a progress bar based on scroll position:
+
+```tsx
+import { Animated, Dimensions } from "react-native";
+import AnimatedFlashList from "@shopify/flash-list/dist/AnimatedFlashList";
+
+function ListWithProgress() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [contentHeight, setContentHeight] = useState(0);
+  const [listHeight, setListHeight] = useState(0);
+
+  const scrollableHeight = contentHeight - listHeight;
+  const progressWidth = scrollY.interpolate({
+    inputRange: [0, scrollableHeight],
+    outputRange: [0, Dimensions.get("window").width],
+    extrapolate: "clamp",
+  });
+
+  return (
+    <>
+      <Animated.View
+        style={[
+          styles.progressBar,
+          { width: progressWidth },
+        ]}
+      />
+
+      <AnimatedFlashList
+        data={items}
+        renderItem={({ item }) => <ItemView item={item} />}
+        estimatedItemSize={100}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        onContentSizeChange={(_, height) => setContentHeight(height)}
+        onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+        scrollEventThrottle={16}
+      />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  progressBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: 3,
+    backgroundColor: "blue",
+    zIndex: 1,
+  },
+});
+```
+
+## Props
+
+`AnimatedFlashList` accepts all the same props as [`FlashList`](/api/flash-list), plus any props that work with animated components.
+
+### Additional Animated Props
+
+When using `AnimatedFlashList`, you can animate the following additional props:
+
+- `contentContainerStyle` - Animate the content container style
+- `style` - Animate the list container style
+- Any other style properties that support animation
+
+## Ref Methods
+
+`AnimatedFlashList` exposes the same ref methods as [`FlashList`](/api/flash-list#ref-methods).
+
+```tsx
+const listRef = useRef<FlashListRef<ItemType>>(null);
+
+<AnimatedFlashList ref={listRef} data={data} renderItem={renderItem} />
+
+// All FlashList ref methods are available:
+listRef.current?.scrollToIndex({ index: 5, animated: true });
+listRef.current?.scrollToEnd({ animated: true });
+```
+
+## Performance Considerations
+
+### Use Native Driver When Possible
+
+For best performance, use `useNativeDriver: true` when animating transform and opacity properties:
+
+```tsx
+<AnimatedFlashList
+  onScroll={Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true } // ✅ Good for transform/opacity
+  )}
+/>
+```
+
+<Warning>
+  Set `useNativeDriver: false` when animating layout properties like width, height, padding, or margin. These cannot be animated on the native thread.
+</Warning>
+
+### Optimize Scroll Event Throttle
+
+Use `scrollEventThrottle` to control how often scroll events fire:
+
+```tsx
+<AnimatedFlashList
+  scrollEventThrottle={16} // ~60fps
+  onScroll={handleScroll}
+/>
+```
+
+Lower values (like `16`) provide smoother animations but may impact performance. Higher values (like `100`) are more performant but may appear choppy.
+
+### Avoid Complex Interpolations
+
+Complex interpolations can impact performance. Keep interpolation logic simple:
+
+```tsx
+// ✅ Good - simple interpolation
+const opacity = scrollY.interpolate({
+  inputRange: [0, 100],
+  outputRange: [1, 0],
+});
+
+// ❌ Avoid - complex calculation in interpolation
+const complexValue = scrollY.interpolate({
+  inputRange: [0, 50, 100, 150, 200],
+  outputRange: [0, 25, 75, 100, 125],
+});
+```
+
+## Type Safety
+
+`AnimatedFlashList` is fully typed and supports the same generics as `FlashList`:
+
+```tsx
+interface Item {
+  id: string;
+  title: string;
+}
+
+// Type-safe AnimatedFlashList
+<AnimatedFlashList<Item>
+  data={items}
+  renderItem={({ item }) => (
+    <Text>{item.title}</Text> // item is typed as Item
+  )}
+  keyExtractor={(item) => item.id} // item is typed as Item
+  estimatedItemSize={100}
+/>
+```
+
+## Differences from FlatList
+
+Just like `FlashList`, `AnimatedFlashList` has some key differences from React Native's `Animated.FlatList`:
+
+1. **Required `estimatedItemSize`**: While not strictly required, providing this prop significantly improves performance
+2. **Better recycling**: Items are recycled more efficiently, which is especially important for animated lists
+3. **Consistent performance**: Animation performance remains stable even with large datasets
+
+See the [FlashList documentation](/api/flash-list) for more details on these differences.
+
+## Implementation Details
+
+`AnimatedFlashList` is created using React Native's `Animated.createAnimatedComponent`:
+
+```tsx
+const AnimatedFlashList = Animated.createAnimatedComponent<
+  React.ComponentType<FlashListProps<any>>
+>(FlashList);
+```
+
+This means it supports all Animated API features including:
+- `Animated.Value`
+- `Animated.event`
+- `Animated.interpolate`
+- Animated style props
+- Animated refs
+
+## Related
+
+- [FlashList](/api/flash-list) - Base FlashList component API
+- [React Native Animated](https://reactnative.dev/docs/animated) - React Native Animated API
+- [Performance](/fundamentals/performant-components) - Performance optimization guide

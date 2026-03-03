@@ -1,0 +1,434 @@
+---
+title: Section Lists
+description: Implement sectioned lists with headers and footers
+icon: list
+---
+
+React Native's `SectionList` provides a convenient API for displaying sectioned data. While FlashList doesn't have a dedicated `SectionList` component, you can achieve the same functionality with better performance using FlashList's existing props.
+
+## Understanding the Difference
+
+React Native's `SectionList` has these props:
+- `sections` - Array of section objects with data
+- `renderSectionHeader` - Render header for each section
+- `renderSectionFooter` - Render footer for each section
+- `stickySectionHeadersEnabled` - Make headers sticky
+
+**FlashList offers all this functionality using a flat data structure and `getItemType`.**
+
+## Migration Guide
+
+Let's migrate a contacts list from `SectionList` to `FlashList`.
+
+<Steps>
+  <Step title="Starting with SectionList">
+    Here's a typical `SectionList` implementation:
+
+    ```tsx
+    import React from "react";
+    import { SectionList, Text, StyleSheet } from "react-native";
+
+    interface Contact {
+      firstName: string;
+      lastName: string;
+    }
+
+    interface Section {
+      title: string;
+      data: Contact[];
+    }
+
+    const contacts: Section[] = [
+      { 
+        title: "A", 
+        data: [{ firstName: "John", lastName: "Aaron" }] 
+      },
+      {
+        title: "D",
+        data: [
+          { firstName: "John", lastName: "Doe" },
+          { firstName: "Mary", lastName: "Dianne" },
+        ],
+      },
+    ];
+
+    const ContactsSectionList = () => {
+      return (
+        <SectionList
+          sections={contacts}
+          renderItem={({ item }) => (
+            <Text style={styles.item}>{item.firstName}</Text>
+          )}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.header}>{title}</Text>
+          )}
+        />
+      );
+    };
+
+    const styles = StyleSheet.create({
+      header: {
+        fontSize: 32,
+        backgroundColor: "#fff",
+        fontWeight: "bold",
+        padding: 12,
+      },
+      item: {
+        fontSize: 16,
+        padding: 12,
+      },
+    });
+    ```
+  </Step>
+
+  <Step title="Flatten your data structure">
+    Convert the nested section structure into a flat array where headers are mixed with data:
+
+    ```tsx
+    type ListItem = string | Contact;
+
+    const contacts: ListItem[] = [
+      "A",
+      { firstName: "John", lastName: "Aaron" },
+      "D",
+      { firstName: "John", lastName: "Doe" },
+      { firstName: "Mary", lastName: "Dianne" },
+    ];
+    ```
+
+    <Tip>
+    You can use TypeScript union types to distinguish between headers and items.
+    </Tip>
+  </Step>
+
+  <Step title="Implement with FlashList">
+    Use `getItemType` to distinguish between headers and items:
+
+    ```tsx
+    import { FlashList } from "@shopify/flash-list";
+
+    const ContactsFlashList = () => {
+      return (
+        <FlashList
+          data={contacts}
+          renderItem={({ item }) => {
+            if (typeof item === "string") {
+              // Render section header
+              return <Text style={styles.header}>{item}</Text>;
+            } else {
+              // Render contact item
+              return <Text style={styles.item}>{item.firstName}</Text>;
+            }
+          }}
+          getItemType={(item) => {
+            // Critical for performance: specify item types
+            return typeof item === "string" ? "sectionHeader" : "row";
+          }}
+          estimatedItemSize={50}
+        />
+      );
+    };
+    ```
+  </Step>
+
+  <Step title="Add sticky headers (optional)">
+    Compute sticky header indices and pass them to FlashList:
+
+    ```tsx
+    const stickyHeaderIndices = contacts
+      .map((item, index) => {
+        if (typeof item === "string") {
+          return index;
+        }
+        return null;
+      })
+      .filter((item) => item !== null) as number[];
+
+    return (
+      <FlashList
+        data={contacts}
+        renderItem={renderItem}
+        getItemType={getItemType}
+        stickyHeaderIndices={stickyHeaderIndices}
+        estimatedItemSize={50}
+      />
+    );
+    ```
+  </Step>
+</Steps>
+
+## Complete Example
+
+Here's a full implementation with TypeScript:
+
+```tsx
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+
+interface Contact {
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
+type ListItem = { type: "header"; title: string } | { type: "item"; data: Contact };
+
+const ContactsFlashList = () => {
+  const contacts: ListItem[] = useMemo(
+    () => [
+      { type: "header", title: "A" },
+      { type: "item", data: { firstName: "John", lastName: "Aaron", phone: "555-0100" } },
+      { type: "item", data: { firstName: "Alice", lastName: "Anderson", phone: "555-0101" } },
+      { type: "header", title: "D" },
+      { type: "item", data: { firstName: "John", lastName: "Doe", phone: "555-0200" } },
+      { type: "item", data: { firstName: "Mary", lastName: "Dianne", phone: "555-0201" } },
+      { type: "header", title: "S" },
+      { type: "item", data: { firstName: "Sam", lastName: "Smith", phone: "555-0300" } },
+    ],
+    []
+  );
+
+  const stickyHeaderIndices = useMemo(
+    () =>
+      contacts
+        .map((item, index) => (item.type === "header" ? index : null))
+        .filter((item): item is number => item !== null),
+    [contacts]
+  );
+
+  const renderItem = ({ item }: { item: ListItem }) => {
+    if (item.type === "header") {
+      return (
+        <View style={styles.header}>
+          <Text style={styles.headerText}>{item.title}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.item}>
+        <Text style={styles.name}>
+          {item.data.firstName} {item.data.lastName}
+        </Text>
+        <Text style={styles.phone}>{item.data.phone}</Text>
+      </View>
+    );
+  };
+
+  const getItemType = (item: ListItem) => {
+    return item.type === "header" ? "sectionHeader" : "row";
+  };
+
+  return (
+    <FlashList
+      data={contacts}
+      renderItem={renderItem}
+      getItemType={getItemType}
+      stickyHeaderIndices={stickyHeaderIndices}
+      estimatedItemSize={60}
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: "#f0f0f0",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  item: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  phone: {
+    fontSize: 14,
+    color: "#666",
+  },
+});
+
+export default ContactsFlashList;
+```
+
+## Advanced Patterns
+
+### Section Footers
+
+Add footers between sections:
+
+```tsx
+type ListItem = 
+  | { type: "header"; title: string }
+  | { type: "item"; data: Contact }
+  | { type: "footer"; count: number };
+
+const contacts: ListItem[] = [
+  { type: "header", title: "A" },
+  { type: "item", data: { firstName: "John", lastName: "Aaron" } },
+  { type: "footer", count: 1 },
+  { type: "header", title: "D" },
+  { type: "item", data: { firstName: "John", lastName: "Doe" } },
+  { type: "item", data: { firstName: "Mary", lastName: "Dianne" } },
+  { type: "footer", count: 2 },
+];
+
+const renderItem = ({ item }: { item: ListItem }) => {
+  switch (item.type) {
+    case "header":
+      return <Text style={styles.header}>{item.title}</Text>;
+    case "footer":
+      return <Text style={styles.footer}>{item.count} contacts</Text>;
+    case "item":
+      return <Text style={styles.item}>{item.data.firstName}</Text>;
+  }
+};
+
+const getItemType = (item: ListItem) => item.type;
+```
+
+### Section Separators
+
+Add visual separators between sections:
+
+```tsx
+const renderItem = ({ item, index }: { item: ListItem; index: number }) => {
+  if (item.type === "header") {
+    return (
+      <>
+        {index > 0 && <View style={styles.sectionSeparator} />}
+        <Text style={styles.header}>{item.title}</Text>
+      </>
+    );
+  }
+  return <Text style={styles.item}>{item.data.firstName}</Text>;
+};
+
+const styles = StyleSheet.create({
+  sectionSeparator: {
+    height: 20,
+    backgroundColor: "#f5f5f5",
+  },
+});
+```
+
+### Dynamic Data Transformation
+
+Create a helper function to transform section data:
+
+```tsx
+interface Section {
+  title: string;
+  data: Contact[];
+}
+
+function flattenSections(sections: Section[]): ListItem[] {
+  return sections.flatMap((section) => [
+    { type: "header" as const, title: section.title },
+    ...section.data.map((data) => ({ type: "item" as const, data })),
+  ]);
+}
+
+const ContactsList = ({ sections }: { sections: Section[] }) => {
+  const flatData = useMemo(() => flattenSections(sections), [sections]);
+  
+  return (
+    <FlashList
+      data={flatData}
+      renderItem={renderItem}
+      getItemType={getItemType}
+      estimatedItemSize={60}
+    />
+  );
+};
+```
+
+## Comparison
+
+<Tabs>
+  <Tab title="SectionList Approach">
+    **Pros:**
+    - Familiar API for RN developers
+    - Data structure matches visual hierarchy
+    - Built-in section support
+
+    **Cons:**
+    - Poor performance with large datasets
+    - Limited customization
+    - Higher memory usage
+  </Tab>
+  <Tab title="FlashList Approach">
+    **Pros:**
+    - Much better performance
+    - More flexible customization
+    - Lower memory footprint
+    - Better recycling
+
+    **Cons:**
+    - Requires data transformation
+    - Manual sticky header indices
+    - Different mental model
+  </Tab>
+</Tabs>
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Use getItemType" icon="shapes">
+    Always implement `getItemType` to enable proper view recycling between different item types.
+  </Card>
+  <Card title="Memoize computations" icon="memory">
+    Use `useMemo` for sticky header indices and data transformations to avoid unnecessary recalculations.
+  </Card>
+  <Card title="Optimize renderItem" icon="code">
+    Extract render logic into memoized components to prevent unnecessary re-renders.
+  </Card>
+  <Card title="Set estimatedItemSize" icon="ruler">
+    Provide an accurate `estimatedItemSize` for better initial layout calculations.
+  </Card>
+</CardGroup>
+
+## Why This Approach?
+
+FlashList uses a flat data structure because:
+
+<AccordionGroup>
+  <Accordion title="Better recycling performance">
+    A flat structure allows FlashList to recycle views more efficiently across the entire list, not just within sections.
+  </Accordion>
+  
+  <Accordion title="Simplified state management">
+    Updates and mutations are simpler with a single array rather than nested section structures.
+  </Accordion>
+  
+  <Accordion title="More flexible">
+    You have complete control over how sections, headers, and footers are rendered and styled.
+  </Accordion>
+  
+  <Accordion title="Better TypeScript support">
+    Union types provide better type safety than the generic section structure.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Sticky Headers" icon="thumbtack" href="/fundamentals/usage#stickyheaderindices">
+    Learn more about implementing sticky headers
+  </Card>
+  <Card title="getItemType" icon="code-branch" href="/fundamentals/usage#getitemtype">
+    Understand how item types improve performance
+  </Card>
+</CardGroup>

@@ -1,0 +1,287 @@
+---
+title: Scroll Methods
+description: Methods for controlling scroll position and behavior in FlashList
+---
+
+FlashList provides imperative scroll methods through a ref. These methods allow you to programmatically control the scroll position of your list.
+
+## Basic Usage
+
+```tsx
+import { useRef } from 'react';
+import { FlashList } from '@shopify/flash-list';
+
+function MyComponent() {
+  const listRef = useRef<FlashList<ItemType>>(null);
+
+  const handleScrollToTop = () => {
+    listRef.current?.scrollToEnd({ animated: true });
+  };
+
+  return (
+    <FlashList
+      ref={listRef}
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+## scrollToEnd
+
+Scrolls to the end of the list.
+
+```tsx
+listRef.current?.scrollToEnd(params);
+```
+
+### Parameters
+
+<ParamField path="params" type="object" optional>
+  Optional parameters for scrolling
+  
+  <Expandable title="properties">
+    <ParamField path="animated" type="boolean" default="false">
+      Whether the scroll should be animated
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example
+
+```tsx
+// Animate scroll to the end of the list
+listRef.current?.scrollToEnd({ animated: true });
+
+// Jump to end without animation
+listRef.current?.scrollToEnd();
+```
+
+### When to Use
+
+- Scrolling to the latest message in a chat application
+- Navigating to the newest items in a feed
+- Implementing "scroll to bottom" buttons
+
+---
+
+## scrollToIndex
+
+Scrolls to a specific index in the list. This is the most common method for navigating to a particular item.
+
+```tsx
+listRef.current?.scrollToIndex(params);
+```
+
+### Parameters
+
+<ParamField path="params" type="object" required>
+  Parameters for scrolling to index
+  
+  <Expandable title="properties">
+    <ParamField path="index" type="number" required>
+      The index of the item to scroll to
+    </ParamField>
+    
+    <ParamField path="animated" type="boolean" default="false">
+      Whether the scroll should be animated
+    </ParamField>
+    
+    <ParamField path="viewPosition" type="number" default="0">
+      Position of the item within the visible area:
+      - `0` = top/left edge
+      - `0.5` = center
+      - `1` = bottom/right edge
+    </ParamField>
+    
+    <ParamField path="viewOffset" type="number" optional>
+      Additional pixel offset to apply after viewPosition calculation
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="Promise<void>" type="Promise<void>">
+  A Promise that resolves when the scroll operation is complete
+</ResponseField>
+
+### Examples
+
+```tsx
+// Scroll to the 5th item (index 4) at the top
+listRef.current?.scrollToIndex({
+  index: 4,
+  animated: true
+});
+
+// Scroll to item and center it in the viewport
+listRef.current?.scrollToIndex({
+  index: 10,
+  animated: true,
+  viewPosition: 0.5
+});
+
+// Scroll to item with additional offset
+listRef.current?.scrollToIndex({
+  index: 7,
+  animated: true,
+  viewPosition: 0,
+  viewOffset: 50 // 50px from the top edge
+});
+
+// Wait for scroll to complete
+await listRef.current?.scrollToIndex({ index: 5, animated: true });
+console.log('Scroll completed!');
+```
+
+### When to Use
+
+- Navigating to search results
+- Implementing "jump to" functionality
+- Highlighting specific items
+- Deep linking to specific content
+
+---
+
+## scrollToItem
+
+Scrolls to a specific item in the list using the item reference instead of its index.
+
+```tsx
+listRef.current?.scrollToItem(params);
+```
+
+### Parameters
+
+<ParamField path="params" type="object" required>
+  Parameters for scrolling to item
+  
+  <Expandable title="properties">
+    <ParamField path="item" type="T" required>
+      The item object to scroll to (must exist in your data array)
+    </ParamField>
+    
+    <ParamField path="animated" type="boolean" default="false">
+      Whether the scroll should be animated
+    </ParamField>
+    
+    <ParamField path="viewPosition" type="number" default="0">
+      Position of the item within the visible area:
+      - `0` = top/left edge
+      - `0.5` = center
+      - `1` = bottom/right edge
+    </ParamField>
+    
+    <ParamField path="viewOffset" type="number" optional>
+      Additional pixel offset to apply after viewPosition calculation
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Examples
+
+```tsx
+// Scroll to a specific item
+const targetItem = data[10];
+listRef.current?.scrollToItem({
+  item: targetItem,
+  animated: true
+});
+
+// Scroll to item and center it
+const selectedUser = users.find(u => u.id === selectedId);
+if (selectedUser) {
+  listRef.current?.scrollToItem({
+    item: selectedUser,
+    animated: true,
+    viewPosition: 0.5
+  });
+}
+```
+
+### When to Use
+
+- When you have a reference to an item but don't know its index
+- Scrolling to items after filtering or searching
+- Navigating to items based on user selection
+- Working with data that has unique identifiers
+
+<Note>
+  The item must be present in the `data` array passed to FlashList. FlashList uses referential equality to find the item.
+</Note>
+
+---
+
+## scrollToOffset
+
+Scrolls the list to a specific pixel offset position. Use this when you need precise control over scroll position.
+
+```tsx
+listRef.current?.scrollToOffset(params);
+```
+
+### Parameters
+
+<ParamField path="params" type="object" required>
+  Parameters for scrolling to offset
+  
+  <Expandable title="properties">
+    <ParamField path="offset" type="number" required>
+      The pixel offset to scroll to
+    </ParamField>
+    
+    <ParamField path="animated" type="boolean" default="false">
+      Whether the scroll should be animated
+    </ParamField>
+    
+    <ParamField path="skipFirstItemOffset" type="boolean" default="true">
+      If true, the first item offset (headers/padding) will not be included in calculation
+    </ParamField>
+    
+    <ParamField path="viewPosition" type="number" optional>
+      Position relative to the viewport (0 = top, 0.5 = center, 1 = bottom)
+    </ParamField>
+    
+    <ParamField path="viewOffset" type="number" optional>
+      Additional offset to apply after viewPosition calculation
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Examples
+
+```tsx
+// Scroll to 200px from the top
+listRef.current?.scrollToOffset({
+  offset: 200,
+  animated: true
+});
+
+// Scroll to exact position including header offset
+listRef.current?.scrollToOffset({
+  offset: 500,
+  animated: false,
+  skipFirstItemOffset: false
+});
+
+// Restore previous scroll position
+const savedOffset = 1000;
+listRef.current?.scrollToOffset({
+  offset: savedOffset,
+  animated: false
+});
+```
+
+### When to Use
+
+- Restoring scroll position after navigation
+- Implementing custom scroll restoration
+- Precise scroll position control
+- Synchronizing scroll with external controls
+
+<Warning>
+  Unlike `scrollToIndex`, this method requires you to calculate the exact pixel position. Consider using `scrollToIndex` for item-based navigation.
+</Warning>

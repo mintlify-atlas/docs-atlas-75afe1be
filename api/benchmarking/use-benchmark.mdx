@@ -1,0 +1,597 @@
+---
+title: "useBenchmark"
+description: "Hook for benchmarking FlashList performance"
+---
+
+## Overview
+
+`useBenchmark` is a React hook that measures FlashList performance by automatically scrolling through your list and tracking JavaScript thread FPS. It provides detailed metrics and actionable suggestions for optimization.
+
+## Import
+
+```tsx
+import { useBenchmark } from "@shopify/flash-list";
+```
+
+## Signature
+
+```typescript
+function useBenchmark(
+  flashListRef: React.RefObject<FlashListRef<any>>,
+  callback: (benchmarkResult: BenchmarkResult) => void,
+  params?: BenchmarkParams
+): {
+  startBenchmark: () => void;
+  isBenchmarkRunning: boolean;
+}
+```
+
+## Parameters
+
+### flashListRef
+
+**Type:** `React.RefObject<FlashListRef<any>>`
+
+A ref object pointing to the FlashList instance to benchmark.
+
+```tsx
+const flashListRef = useRef<FlashListRef>(null);
+
+<FlashList
+  ref={flashListRef}
+  // ...
+/>
+```
+
+### callback
+
+**Type:** `(benchmarkResult: BenchmarkResult) => void`
+
+Callback function invoked when the benchmark completes. Receives a `BenchmarkResult` object containing metrics and suggestions.
+
+```tsx
+const handleBenchmarkResult = (result: BenchmarkResult) => {
+  if (result.interrupted) {
+    console.log("Benchmark was interrupted");
+    return;
+  }
+  
+  console.log(result.formattedString);
+  // Process results...
+};
+```
+
+### params
+
+**Type:** `BenchmarkParams` (optional)
+
+Configuration options for the benchmark.
+
+## BenchmarkParams
+
+```typescript
+interface BenchmarkParams {
+  startDelayInMs?: number;
+  speedMultiplier?: number;
+  repeatCount?: number;
+  sumNegativeBlankAreaValues?: boolean;
+  startManually?: boolean;
+}
+```
+
+### startDelayInMs
+
+**Type:** `number`
+
+**Default:** `3000`
+
+Delay in milliseconds before the benchmark starts automatically. Gives time for the list to initialize and render.
+
+```tsx
+useBenchmark(flashListRef, callback, {
+  startDelayInMs: 5000 // Wait 5 seconds
+});
+```
+
+### speedMultiplier
+
+**Type:** `number`
+
+**Default:** `1`
+
+Multiplier for scroll speed. Higher values scroll faster, lower values scroll slower.
+
+```tsx
+useBenchmark(flashListRef, callback, {
+  speedMultiplier: 2 // Scroll twice as fast
+});
+```
+
+**Use cases:**
+- `0.5`: Slower scroll, tests gentle scrolling performance
+- `1`: Normal speed, simulates typical user behavior
+- `2-3`: Fast scroll, stress tests list rendering
+
+### repeatCount
+
+**Type:** `number`
+
+**Default:** `1`
+
+Number of times to repeat the benchmark cycle (scroll to bottom and back to top).
+
+```tsx
+useBenchmark(flashListRef, callback, {
+  repeatCount: 3 // Run 3 complete cycles
+});
+```
+
+Multiple iterations help identify:
+- Performance degradation over time
+- Memory leaks
+- Caching effectiveness
+- Average performance across runs
+
+### sumNegativeBlankAreaValues
+
+**Type:** `boolean`
+
+**Default:** `false`
+
+When true, cumulative blank area includes negative values (when the list renders faster than scroll speed).
+
+```tsx
+useBenchmark(flashListRef, callback, {
+  sumNegativeBlankAreaValues: true
+});
+```
+
+### startManually
+
+**Type:** `boolean`
+
+**Default:** `false`
+
+When true, prevents automatic benchmark start. Use the returned `startBenchmark` function to trigger manually.
+
+```tsx
+const { startBenchmark, isBenchmarkRunning } = useBenchmark(
+  flashListRef,
+  callback,
+  { startManually: true }
+);
+
+// Later...
+<Button onPress={startBenchmark} title="Start Benchmark" />
+```
+
+## Return Value
+
+```typescript
+{
+  startBenchmark: () => void;
+  isBenchmarkRunning: boolean;
+}
+```
+
+### startBenchmark
+
+**Type:** `() => void`
+
+Function to manually start the benchmark. Only needed when `startManually: true`.
+
+```tsx
+const { startBenchmark } = useBenchmark(flashListRef, callback, {
+  startManually: true
+});
+
+startBenchmark(); // Start the benchmark
+```
+
+**Note:** Calling this function while a benchmark is already running has no effect.
+
+### isBenchmarkRunning
+
+**Type:** `boolean`
+
+Indicates whether a benchmark is currently in progress.
+
+```tsx
+const { isBenchmarkRunning } = useBenchmark(flashListRef, callback);
+
+return (
+  <Button
+    title={isBenchmarkRunning ? "Running..." : "Start Benchmark"}
+    disabled={isBenchmarkRunning}
+  />
+);
+```
+
+## BenchmarkResult
+
+```typescript
+interface BenchmarkResult {
+  js?: JSFPSResult;
+  interrupted: boolean;
+  suggestions: string[];
+  formattedString?: string;
+}
+
+interface JSFPSResult {
+  minFPS: number;
+  maxFPS: number;
+  averageFPS: number;
+}
+```
+
+### js
+
+**Type:** `JSFPSResult | undefined`
+
+JavaScript thread FPS metrics:
+
+- **averageFPS**: Mean FPS across the entire benchmark
+- **minFPS**: Lowest FPS recorded (indicates worst-case performance)
+- **maxFPS**: Highest FPS recorded (indicates best-case performance)
+
+```tsx
+const result: BenchmarkResult = {
+  js: {
+    averageFPS: 58.5,
+    minFPS: 45.2,
+    maxFPS: 60.0
+  },
+  // ...
+};
+```
+
+### interrupted
+
+**Type:** `boolean`
+
+Indicates whether the benchmark was cancelled before completion.
+
+```tsx
+if (result.interrupted) {
+  console.log("Benchmark did not complete");
+  return;
+}
+```
+
+### suggestions
+
+**Type:** `string[]`
+
+Array of actionable suggestions based on benchmark results.
+
+**Common suggestions:**
+
+1. **Low JS FPS**: "Your average JS FPS is low. This can indicate that your components are doing too much work. Try to optimize your components and reduce re-renders if any"
+
+2. **Small data set**: "Data count is low. Try to increase it to a large number (e.g 200) using the 'useDataMultiplier' hook."
+
+```tsx
+if (result.suggestions.length > 0) {
+  console.log("Performance Suggestions:");
+  result.suggestions.forEach((suggestion, index) => {
+    console.log(`${index + 1}. ${suggestion}`);
+  });
+}
+```
+
+### formattedString
+
+**Type:** `string | undefined`
+
+Pre-formatted string containing all results and suggestions, ready to display or log.
+
+```tsx
+console.log(result.formattedString);
+// Output:
+// Results:
+// 
+// JS FPS: Avg: 58.5 | Min: 45.2 | Max: 60.0
+// 
+// Suggestions:
+// 
+// 1. Your average JS FPS is low...
+```
+
+## Examples
+
+### Basic Benchmark
+
+```tsx
+import { useRef } from "react";
+import { FlashList, useBenchmark } from "@shopify/flash-list";
+
+function BasicBenchmark() {
+  const flashListRef = useRef<FlashListRef>(null);
+
+  useBenchmark(flashListRef, (result) => {
+    console.log(result.formattedString);
+  });
+
+  return (
+    <FlashList
+      ref={flashListRef}
+      data={data}
+      renderItem={({ item }) => <Item item={item} />}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+### Manual Benchmark with UI
+
+```tsx
+import { useRef, useState } from "react";
+import { View, Button, Text } from "react-native";
+import { FlashList, useBenchmark } from "@shopify/flash-list";
+
+function ManualBenchmark() {
+  const flashListRef = useRef<FlashListRef>(null);
+  const [results, setResults] = useState<string>("");
+
+  const { startBenchmark, isBenchmarkRunning } = useBenchmark(
+    flashListRef,
+    (result) => {
+      if (!result.interrupted) {
+        setResults(result.formattedString || "");
+      }
+    },
+    {
+      startManually: true,
+      speedMultiplier: 1,
+      repeatCount: 3
+    }
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ padding: 16 }}>
+        <Button
+          title={isBenchmarkRunning ? "Running..." : "Start Benchmark"}
+          onPress={startBenchmark}
+          disabled={isBenchmarkRunning}
+        />
+        {results && (
+          <Text style={{ marginTop: 16, fontFamily: "monospace" }}>
+            {results}
+          </Text>
+        )}
+      </View>
+      
+      <FlashList
+        ref={flashListRef}
+        data={data}
+        renderItem={({ item }) => <Item item={item} />}
+        estimatedItemSize={100}
+      />
+    </View>
+  );
+}
+```
+
+### Advanced Benchmark with Analytics
+
+```tsx
+import { useRef } from "react";
+import { FlashList, useBenchmark } from "@shopify/flash-list";
+
+function AdvancedBenchmark() {
+  const flashListRef = useRef<FlashListRef>(null);
+
+  useBenchmark(
+    flashListRef,
+    (result) => {
+      if (result.interrupted) {
+        console.warn("Benchmark interrupted");
+        return;
+      }
+
+      // Log detailed metrics
+      console.group("Benchmark Results");
+      console.log("Average FPS:", result.js?.averageFPS);
+      console.log("Min FPS:", result.js?.minFPS);
+      console.log("Max FPS:", result.js?.maxFPS);
+      console.log("FPS Variance:", 
+        (result.js?.maxFPS || 0) - (result.js?.minFPS || 0)
+      );
+      console.groupEnd();
+
+      // Send to analytics
+      analytics.track("list_performance", {
+        average_fps: result.js?.averageFPS,
+        min_fps: result.js?.minFPS,
+        max_fps: result.js?.maxFPS,
+        has_suggestions: result.suggestions.length > 0
+      });
+
+      // Show alert for poor performance
+      if ((result.js?.averageFPS || 60) < 35) {
+        Alert.alert(
+          "Performance Issue",
+          "List performance is below optimal. Check console for suggestions."
+        );
+      }
+    },
+    {
+      startDelayInMs: 3000,
+      speedMultiplier: 2,
+      repeatCount: 5
+    }
+  );
+
+  return (
+    <FlashList
+      ref={flashListRef}
+      data={data}
+      renderItem={({ item }) => <Item item={item} />}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+### Benchmark with Large Dataset
+
+```tsx
+import { useRef } from "react";
+import { FlashList, useBenchmark, useDataMultiplier } from "@shopify/flash-list";
+
+function LargeDataBenchmark() {
+  const flashListRef = useRef<FlashListRef>(null);
+  
+  // Multiply data to 500 items for realistic testing
+  const [data] = useDataMultiplier(originalData, 500);
+
+  useBenchmark(
+    flashListRef,
+    (result) => {
+      console.log("=== Performance Report ===");
+      console.log(result.formattedString);
+      console.log("=========================");
+    },
+    {
+      startDelayInMs: 5000, // Extra time for large dataset
+      speedMultiplier: 1.5,
+      repeatCount: 3
+    }
+  );
+
+  return (
+    <FlashList
+      ref={flashListRef}
+      data={data}
+      renderItem={({ item }) => <Item item={item} />}
+      estimatedItemSize={100}
+    />
+  );
+}
+```
+
+## How It Works
+
+1. **Initialization**: Hook waits for `startDelayInMs` (or manual trigger)
+2. **FPS Tracking**: Starts monitoring JavaScript thread performance using `requestAnimationFrame`
+3. **Scrolling**: Automatically scrolls from top to bottom, then bottom to top
+4. **Repetition**: Repeats the scroll cycle `repeatCount` times
+5. **Analysis**: Calculates FPS metrics and generates suggestions
+6. **Callback**: Invokes callback with complete results
+
+### Scroll Behavior
+
+- Scrolls at approximately 7 pixels per millisecond (multiplied by `speedMultiplier`)
+- Uses non-animated scrolling for consistent measurements
+- Scrolls to the very bottom and top of the list
+- Respects horizontal/vertical list orientation
+
+## Best Practices
+
+### Testing Environment
+
+```tsx
+// ✅ Good: Production build, large dataset
+const [data] = useDataMultiplier(originalData, 500);
+
+useBenchmark(flashListRef, callback, {
+  startDelayInMs: 5000,
+  repeatCount: 3
+});
+```
+
+```tsx
+// ❌ Bad: Debug build, small dataset
+useBenchmark(flashListRef, callback); // Only 10 items
+```
+
+### Result Handling
+
+```tsx
+// ✅ Good: Check for interruption
+useBenchmark(flashListRef, (result) => {
+  if (result.interrupted) {
+    return; // Don't process incomplete results
+  }
+  console.log(result.formattedString);
+});
+```
+
+```tsx
+// ❌ Bad: Ignore interruption flag
+useBenchmark(flashListRef, (result) => {
+  console.log(result.js?.averageFPS); // May be incomplete
+});
+```
+
+### Manual Control
+
+```tsx
+// ✅ Good: User-controlled benchmarking
+const { startBenchmark, isBenchmarkRunning } = useBenchmark(
+  flashListRef,
+  callback,
+  { startManually: true }
+);
+
+return (
+  <Button
+    onPress={startBenchmark}
+    disabled={isBenchmarkRunning}
+    title="Run Benchmark"
+  />
+);
+```
+
+## Common Issues
+
+### Error: "Data is empty, cannot run benchmark"
+
+**Cause**: FlashList has no data when benchmark starts.
+
+**Solution**: Increase `startDelayInMs` or ensure data loads before benchmark:
+
+```tsx
+useBenchmark(flashListRef, callback, {
+  startDelayInMs: 5000 // Give more time
+});
+```
+
+### Low FPS Results
+
+**Possible causes:**
+- Running in debug mode (use release builds)
+- Complex renderItem components
+- Unnecessary re-renders
+- Heavy computations in render
+- Missing React.memo optimizations
+
+**Solutions:**
+```tsx
+// Memoize components
+const Item = React.memo(({ item }) => {
+  return <View>{/* ... */}</View>;
+});
+
+// Simplify renderItem
+const renderItem = useCallback(({ item }) => {
+  return <Item item={item} />;
+}, []);
+```
+
+### Benchmark Doesn't Start
+
+**Check:**
+- Ref is properly attached to FlashList
+- Component hasn't unmounted before `startDelayInMs`
+- Data is loaded
+- No errors in console
+
+## Related
+
+- [JSFPSMonitor](/api/benchmarking/js-fps-monitor) - Low-level FPS monitoring
+- [useFlatListBenchmark](/api/benchmarking/overview) - FlatList benchmarking
+- [useDataMultiplier](/api/benchmarking/overview) - Data multiplication utility
+- [Benchmarking Overview](/api/benchmarking/overview) - Complete benchmarking guide

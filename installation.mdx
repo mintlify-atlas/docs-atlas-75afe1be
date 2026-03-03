@@ -1,0 +1,148 @@
+---
+title: Installation
+description: Install FlashList in your React Native project
+---
+
+## Requirements
+
+<Warning>
+  FlashList v2 is designed exclusively for React Native's **new architecture**. It will not run on the old architecture.
+</Warning>
+
+Before installing FlashList, ensure your project meets these requirements:
+
+- React Native with new architecture enabled
+- React Native 0.68 or higher recommended
+- TypeScript support (optional but recommended)
+
+## Install the Package
+
+Add FlashList to your project using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @shopify/flash-list
+```
+
+```bash yarn
+yarn add @shopify/flash-list
+```
+
+```bash pnpm
+pnpm add @shopify/flash-list
+```
+
+</CodeGroup>
+
+## Peer Dependencies
+
+FlashList requires the following peer dependencies (which are typically already in your React Native project):
+
+- `react`
+- `react-native`
+- `@babel/runtime`
+
+These are usually already installed in React Native projects. If not, install them:
+
+<CodeGroup>
+
+```bash npm
+npm install react react-native @babel/runtime
+```
+
+```bash yarn
+yarn add react react-native @babel/runtime
+```
+
+```bash pnpm
+pnpm add react react-native @babel/runtime
+```
+
+</CodeGroup>
+
+## Verify Installation
+
+After installation, verify that FlashList is working correctly by importing it in your code:
+
+```typescript
+import { FlashList } from "@shopify/flash-list";
+```
+
+<Note>
+  If you see an error about the new architecture, make sure you've enabled it in your React Native project. FlashList v2 will throw a runtime error if the new architecture is not enabled.
+</Note>
+
+## Platform-Specific Setup
+
+### iOS
+
+For iOS projects, install pods after adding the package:
+
+```bash
+cd ios && pod install && cd ..
+```
+
+### Android
+
+No additional setup required for Android. The package will be automatically linked.
+
+### Web (React Native Web)
+
+FlashList v2 works with React Native Web out of the box. No additional configuration needed.
+
+## TypeScript Support
+
+FlashList includes comprehensive TypeScript definitions. No additional `@types` package is needed.
+
+The package exports all necessary types:
+
+```typescript
+import {
+  FlashList,
+  FlashListProps,
+  ListRenderItem,
+  ListRenderItemInfo,
+  FlashListRef,
+} from "@shopify/flash-list";
+```
+
+## Troubleshooting
+
+### Error: "FlashList v2 only supports new architecture"
+
+This error means you're trying to use FlashList v2 on a project without the new architecture enabled.
+
+**Solutions:**
+
+1. Enable the new architecture in your React Native project
+2. Or use FlashList v1.x for old architecture support
+
+### Metro bundler issues
+
+If you encounter bundler issues, try:
+
+```bash
+# Clear Metro bundler cache
+npx react-native start --reset-cache
+
+# Or for Expo
+npx expo start -c
+```
+
+### Build errors on iOS
+
+If you get build errors on iOS:
+
+```bash
+cd ios
+rm -rf Pods Podfile.lock
+pod install
+cd ..
+```
+
+## Next Steps
+
+<Card title="Quick Start" icon="play" href="/quickstart">
+  Learn how to use FlashList with a hands-on tutorial
+</Card>
