@@ -1,0 +1,153 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "FlashList",
+  "projectDescription": "A better, more performant list component for React Native",
+  "theme": "palm",
+  "primaryColor": "#5B21B6",
+  "lightColor": "#8B5CF6",
+  "darkColor": "#4C1D95",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Fundamentals",
+            "pages": [
+              "fundamentals/usage",
+              "fundamentals/recycling",
+              "fundamentals/performant-components",
+              "fundamentals/layout-commit-observer"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/masonry-layout",
+              "guides/section-list",
+              "guides/layout-animation",
+              "guides/reanimated",
+              "guides/testing",
+              "guides/list-profiling"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/v2-changes",
+              "migration/v2-migration",
+              "migration/from-flatlist"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "known-issues",
+              "troubleshooting",
+              "faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Components",
+            "pages": [
+              "api/flash-list",
+              "api/animated-flash-list"
+            ]
+          },
+          {
+            "group": "Props",
+            "pages": [
+              "api/props/data-and-rendering",
+              "api/props/layout-and-styling",
+              "api/props/scroll-behavior",
+              "api/props/viewability",
+              "api/props/performance"
+            ]
+          },
+          {
+            "group": "Methods",
+            "pages": [
+              "api/methods/scroll-methods",
+              "api/methods/utility-methods"
+            ]
+          },
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/hooks/use-recycling-state",
+              "api/hooks/use-layout-state",
+              "api/hooks/use-mapping-helper",
+              "api/hooks/use-flash-list-context"
+            ]
+          },
+          {
+            "group": "Benchmarking",
+            "pages": [
+              "api/benchmarking/overview",
+              "api/benchmarking/use-benchmark",
+              "api/benchmarking/js-fps-monitor"
+            ]
+          },
+          {
+            "group": "TypeScript",
+            "pages": [
+              "api/typescript/types",
+              "api/typescript/interfaces"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "View recycling for superior performance",
+    "Drop-in replacement for FlatList",
+    "No size estimates required in v2",
+    "Masonry layout support",
+    "Maintain visible content position",
+    "Multiple item type support with getItemType",
+    "Built for React Native new architecture",
+    "JS-only solution with 60 FPS scrolling"
+  ],
+  "publicApiSurface": [
+    "FlashList",
+    "AnimatedFlashList",
+    "FlashListProps",
+    "FlashListRef",
+    "ListRenderItem",
+    "ListRenderItemInfo",
+    "RenderTarget",
+    "RenderTargetOptions",
+    "useRecyclingState",
+    "useLayoutState",
+    "useMappingHelper",
+    "useFlashListContext",
+    "useBenchmark",
+    "useFlatListBenchmark",
+    "useDataMultiplier",
+    "JSFPSMonitor",
+    "autoScroll",
+    "ViewToken",
+    "LayoutCommitObserver",
+    "scrollToEnd",
+    "scrollToIndex",
+    "scrollToItem",
+    "scrollToOffset",
+    "prepareForLayoutAnimationRender",
+    "getScrollableNode",
+    "recordInteraction"
+  ]
+}
